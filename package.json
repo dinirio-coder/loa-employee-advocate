@@ -1,0 +1,34 @@
+{
+  "name": "loa-employee-advocate",
+  "version": "1.0.0",
+  "description": "Tweek 14.0 Hackathon - A 3-Gem AI ecosystem &amp; interactive React dashboard for Twilio Leave of Absence navigation.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dinirio-coder/loa-employee-advocate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/dinirio-coder/loa-employee-advocate/issues"
+  },
+  "homepage": "https://github.com/dinirio-coder/loa-employee-advocate#readme",
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2"
+  }
+}
