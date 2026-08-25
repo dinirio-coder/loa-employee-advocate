@@ -1,91 +1,46 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { CONFLICTING_EMPLOYEE_IDS } from "./data/embeddedEmployeeRecords";
+import {
+  normalizeEmployeeId,
+} from "./data/identityUtils";
+import {
+  getEmployeePaySummary,
+  PAY_UNAVAILABLE_MESSAGE,
+} from "./data/payUtils";
+import { getEmployeeDurationSummary } from "./data/durationUtils";
+import { getVerifiedEmployeeProfile } from "./data/verifiedEmployeeProfile";
 
-const EMPLOYEES = [
-  {
-    firstName: "Buzz",
-    lastName: "Lightyear",
-    employeeId: "839201",
-    annualSalary: 157650.66,
-    biweeklySalary: 6063.49,
-    location: "Remote — USA — Denver, CO",
-    state: "CO",
-    leaveProduct: "STD / Own Medical",
-    leaveReason: "Own medical condition",
-    claimStatus: "Closed — coordinated claim",
-    activeStage: "Welcome Back & RTW",
-    stageNote: "Claim closed",
-    durationWeeks: 9,
-    startDate: "Jul 22, 2026",
-    endDate: "Sep 22, 2026",
-    certStatus: "Complete",
-    stateOffset: 0,
-    manager: "Alex Morgan",
-    hrbp: "Jordan Lee",
-  },
-  {
-    firstName: "Robin",
-    lastName: "Christopher",
-    employeeId: "293877",
-    annualSalary: 239700,
-    biweeklySalary: 9219.23,
-    location: "Remote — USA",
-    state: "US",
-    leaveProduct: "STDCP / Company Parental",
-    leaveReason: "Parental leave",
-    claimStatus: "Approved through Aug 23, 2026",
-    activeStage: "Active Leave",
-    stageNote: "Benefits in pay",
-    durationWeeks: 36,
-    startDate: "Dec 10, 2025",
-    endDate: "Aug 23, 2026",
-    certStatus: "Complete",
-    stateOffset: 0,
-    manager: "Avery Chen",
-    hrbp: "Jordan Lee",
-  },
-  {
-    firstName: "Mickey",
-    lastName: "Mouse",
-    employeeId: "100865",
-    annualSalary: 328418.43,
-    biweeklySalary: 12631.48,
-    location: "Remote — USA — New Jersey",
-    state: "NJ",
-    leaveProduct: "STDCP / Company Parental",
-    leaveReason: "Baby bonding",
-    claimStatus: "Closed — returned to work",
-    activeStage: "Welcome Back & RTW",
-    stageNote: "Returned to work",
-    durationWeeks: 52,
-    startDate: "Aug 17, 2025",
-    endDate: "Aug 16, 2026",
-    certStatus: "Complete",
-    stateOffset: 3530,
-    manager: "Casey Rivera",
-    hrbp: "Morgan Taylor",
-  },
-  {
-    firstName: "Tinker",
-    lastName: "Bell",
-    employeeId: "582970",
-    annualSalary: 155000,
-    biweeklySalary: 5961.54,
-    location: "Remote — USA — Pennsylvania",
-    state: "PA",
-    leaveProduct: "STD + PLCOB / Medical Leave",
-    leaveReason: "Medical leave",
-    claimStatus: "Pended — review in progress",
-    activeStage: "Medical Documentation",
-    stageNote: "Action may be needed",
-    durationWeeks: 11,
-    startDate: "May 30, 2026",
-    endDate: "Aug 11, 2026",
-    certStatus: "3 days remaining",
-    stateOffset: 0,
-    manager: "Sam Patel",
-    hrbp: "Morgan Taylor",
-  },
-];
+const CONFLICTED_EMPLOYEE_IDS = new Set(
+  CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
+);
+
+const TEXT_NOT_AVAILABLE = "Not available in source report";
+
+const safeText = (value, fallback = "") => {
+  const text = String(value ?? "").trim();
+  return text && !["null", "undefined", "NaN"].includes(text.toLowerCase())
+    ? text
+    : fallback;
+};
+
+
+const getDisplayLocation = (employee) => {
+  const location = safeText(employee?.location);
+  const state = safeText(employee?.state);
+
+  if (state) return state;
+  if (location) return location;
+  return TEXT_NOT_AVAILABLE;
+};
+
+const GENERIC_VERIFICATION_ERROR =
+  "I couldn’t verify an employee record using all three entries. Please check the spelling of your first and last name and re-enter your Employee ID.";
+
+const CONFLICT_VERIFICATION_ERROR =
+  "We found a source record that requires administrative review before personalized information can be displayed. Please contact Twilio Leave Operations.";
+
+const SUCCESS_STATUS_MESSAGE =
+  "Thank you. I confirmed your first name, last name, and Employee ID against the authorized employee record. I can now help with the administrative information available in your leave record.";
 
 const TABS = [
   ["todos", "✓", "Lifecycle To-Dos"],
@@ -102,8 +57,6 @@ const money = (value) =>
     currency: "USD",
     minimumFractionDigits: 2,
   }).format(Number(value || 0));
-
-const normalize = (value) => String(value || "").trim().toLowerCase();
 
 function Badge({ children, tone = "cyan" }) {
   const tones = {
@@ -366,21 +319,26 @@ function IdentityVerificationGate({ onVerify }) {
   const submit = (event) => {
     event.preventDefault();
 
-    const match = EMPLOYEES.find(
-      (employee) =>
-        normalize(employee.firstName) === normalize(form.firstName) &&
-        normalize(employee.lastName) === normalize(form.lastName) &&
-        employee.employeeId === form.employeeId.trim()
-    );
+    const employeeId = normalizeEmployeeId(form.employeeId);
+    const hasConflict = CONFLICTED_EMPLOYEE_IDS.has(employeeId);
 
-    if (!match) {
-      setError(
-        "We couldn’t verify that three-field combination. Check each field and try again."
-      );
+    if (hasConflict) {
+      setError(CONFLICT_VERIFICATION_ERROR);
       return;
     }
 
-    onVerify(match);
+    const profile = getVerifiedEmployeeProfile(
+      form.firstName,
+      form.lastName,
+      employeeId
+    );
+
+    if (!profile) {
+      setError(GENERIC_VERIFICATION_ERROR);
+      return;
+    }
+
+    onVerify(profile);
   };
 
   return (
@@ -483,6 +441,10 @@ function IdentityVerificationGate({ onVerify }) {
                 autoComplete="off"
               />
 
+              <p className="text-xs leading-5 text-[#9AA0B4]">
+                If your source record contains only one name, enter that name as First Name and enter N/A as Last Name.
+              </p>
+
               {error && (
                 <div
                   role="alert"
@@ -500,36 +462,6 @@ function IdentityVerificationGate({ onVerify }) {
               </button>
             </form>
 
-            <div className="mt-8 border-t border-[#38425E] pt-6">
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#9AA0B4]">
-                Demo profiles
-              </p>
-
-              <div className="flex flex-wrap gap-2">
-                {EMPLOYEES.map((employee) => (
-                  <button
-                    key={employee.employeeId}
-                    type="button"
-                    onClick={() =>
-                      setForm({
-                        firstName: employee.firstName,
-                        lastName: employee.lastName,
-                        employeeId: employee.employeeId,
-                      })
-                    }
-                    className="rounded-lg border border-[#38425E] bg-[#000D25]/60 px-3 py-2 text-left text-xs text-[#F7F4F7] transition hover:border-[#1B66EE] hover:text-white"
-                  >
-                    {employee.firstName} {employee.lastName} ·{" "}
-                    {employee.employeeId}
-                  </button>
-                ))}
-              </div>
-
-              <p className="mt-5 text-xs leading-5 text-[#9AA0B4]">
-                Demo only. Production identity verification must be enforced by
-                authenticated server-side access controls.
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -598,7 +530,7 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
           <strong>Verified Profile:</strong> {employee.firstName}{" "}
           {employee.lastName} <span className="text-[#9AA0B4]">|</span> ID:{" "}
           {employee.employeeId} <span className="text-[#9AA0B4]">|</span>{" "}
-          Location: {employee.location}
+          Location: {getDisplayLocation(employee)}
         </div>
       </header>
 
@@ -619,32 +551,40 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
 }
 
 function SummaryCards({ employee }) {
+  const pay = getEmployeePaySummary(employee);
+  const duration = getEmployeeDurationSummary(employee);
   const cards = [
     {
-      label: "Active Stage",
-      value: employee.activeStage,
-      note: employee.stageNote,
+      label: "Current Report Status",
+      value: safeText(employee?.currentReportStatus, TEXT_NOT_AVAILABLE),
+      note: safeText(employee?.stageNote, TEXT_NOT_AVAILABLE),
       icon: "▣",
       color: "cyan",
     },
     {
       label: "Total Planned Duration",
-      value: `${employee.durationWeeks} Weeks`,
-      note: employee.leaveReason,
+      value: duration.hasDuration
+        ? `${duration.durationDays} Days (${duration.durationWeeks % 1 === 0 ? duration.durationWeeks : duration.durationWeeks.toFixed(1)} Weeks)`
+        : TEXT_NOT_AVAILABLE,
+      note: duration.hasDuration
+        ? duration.dateRangeLabel
+        : TEXT_NOT_AVAILABLE,
+      context: duration.hasDuration ? duration.contextLabel : null,
+      details: duration.hasDuration ? duration : null,
       icon: "⌛",
       color: "pink",
     },
     {
-      label: "15-Day Med Cert Clock",
-      value: employee.certStatus,
+      label: "Certification / Approval Status",
+      value: safeText(employee?.certStatus, TEXT_NOT_AVAILABLE),
       note: "Check Gmail / MyLincoln Portal",
       icon: "✎",
       color: "amber",
     },
     {
       label: "Est. Biweekly Base Pay",
-      value: money(employee.biweeklySalary),
-      note: "Before taxes & deductions",
+      value: pay.hasPayData ? money(pay.biweeklySalary) : PAY_UNAVAILABLE_MESSAGE,
+      note: pay.hasPayData ? "Verified ATP salary input" : PAY_UNAVAILABLE_MESSAGE,
       icon: "▦",
       color: "green",
     },
@@ -685,6 +625,28 @@ function SummaryCards({ employee }) {
                 {card.value}
               </p>
               <p className={`mt-2 truncate text-xs ${text}`}>{card.note}</p>
+              {card.context && <p className={`mt-1 truncate text-xs ${text}`}>{card.context}</p>}
+              {card.details && (
+                <details className="mt-2 text-xs text-slate-400">
+                  <summary className="cursor-pointer font-semibold text-slate-300">Duration details</summary>
+                  <dl className="mt-2 space-y-1">
+                    {[
+                      ["Source report", card.details.sourceSheet],
+                      ["Begin date", card.details.startDate],
+                      [card.details.endDateLabel, card.details.endDate],
+                      ["Calculation", card.details.calculationMethod],
+                      ["Leave type", card.details.leaveType],
+                      ["Leave reason", card.details.leaveReason],
+                      ["Current status", card.details.status],
+                    ].filter(([, value]) => value).map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-3">
+                        <dt>{label}</dt>
+                        <dd className="text-right text-slate-300">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
+              )}
             </div>
 
             <div
@@ -760,6 +722,7 @@ function TodosTab({ employee }) {
   const toggle = (id) =>
     setChecked((current) => ({ ...current, [id]: !current[id] }));
 
+  const leaveProductText = safeText(employee?.leaveProduct);
   const stages = [
     {
       id: "pre",
@@ -769,7 +732,9 @@ function TodosTab({ employee }) {
       tone: "cyan",
       items: [
         "File the formal leave intake with Lincoln Financial through MyLincoln Portal or 800-377-1568.",
-        `Confirm the leave product shown on file: ${employee.leaveProduct}.`,
+        leaveProductText
+          ? `Confirm the leave product shown on file: ${leaveProductText}.`
+          : "Leave product is not available in the source report.",
         "Notify your manager and HRBP of the expected start date and business handoff timeline—no medical details needed.",
         "Set Workday and Ramp delegations and prepare your out-of-office message.",
       ],
@@ -937,7 +902,7 @@ function TodosTab({ employee }) {
             </h3>
 
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              Your location on file is <strong>{employee.state}</strong>. Any
+              Your location on file is <strong>{getDisplayLocation(employee)}</strong>. Any
               state-paid benefit is generally coordinated as an offset, with
               Twilio paying the eligible remaining difference on regular
               payroll dates.
@@ -958,13 +923,13 @@ function TodosTab({ employee }) {
 
             <dl className="mt-4 divide-y divide-slate-700/70 text-sm">
               {[
-                ["Leave product", employee.leaveProduct],
-                ["Claim status", employee.claimStatus],
+                ["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],
+                ["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],
                 [
                   "Plan dates",
-                  `${employee.startDate} — ${employee.endDate}`,
+                  `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`,
                 ],
-                ["Annual base salary", money(employee.annualSalary)],
+                ["Annual base salary", "Pay information is not available in this source report."],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -1002,11 +967,27 @@ function PayRow({ label, value, highlight }) {
 }
 
 function PayTab({ employee }) {
-  const [offset, setOffset] = useState(employee.stateOffset);
-  const daily = employee.biweeklySalary / 10;
+  const pay = getEmployeePaySummary(employee);
+
+  if (!pay.hasPayData) {
+    return (
+      <Panel className="p-6">
+        <Badge tone="amber">Pay record unavailable</Badge>
+        <h2 className="mt-4 font-serif text-2xl font-bold">Pay & Top-Up Calculator</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-300">
+          {PAY_UNAVAILABLE_MESSAGE}
+        </p>
+      </Panel>
+    );
+  }
+
+  const [offset, setOffset] = useState(Number(employee.stateOffset ?? 0));
+  const annualSalary = Number(employee.annualSalary ?? 0);
+  const biweeklySalary = pay.biweeklySalary;
+  const daily = biweeklySalary / 10;
   const epPay = daily * 5;
-  const disability = employee.biweeklySalary * 0.6667;
-  const topUp = employee.biweeklySalary - disability;
+  const disability = biweeklySalary * 0.6667;
+  const topUp = biweeklySalary - disability;
   const netDisability = Math.max(
     0,
     disability - Number(offset || 0)
@@ -1033,12 +1014,34 @@ function PayTab({ employee }) {
           <dl className="mt-6 space-y-3">
             <PayRow
               label="Annual base salary"
-              value={money(employee.annualSalary)}
+              value={employee.annualSalary == null ? "Not available in source report" : money(employee.annualSalary)}
             />
             <PayRow
               label="Biweekly base salary"
-              value={money(employee.biweeklySalary)}
+              value={money(pay.biweeklySalary)}
               highlight
+            />
+            <PayRow
+              label="ATP calculated salary amount (source)"
+              value={pay.payableCalculatedSalaryAmount == null ? "Not available in source report" : money(pay.payableCalculatedSalaryAmount)}
+            />
+            <PayRow label="ATP product (source)" value={safeText(pay.product, "Not available in source report")} />
+            <PayRow label="ATP pay code (source)" value={safeText(pay.payCode, "Not available in source report")} />
+            <PayRow
+              label="ATP benefit gross amount (source)"
+              value={pay.benefitGrossAmount == null ? "Not available in source report" : money(pay.benefitGrossAmount)}
+            />
+            <PayRow
+              label="ATP total offsets (source)"
+              value={pay.totalOffsets == null ? "Not available in source report" : money(pay.totalOffsets)}
+            />
+            <PayRow
+              label="ATP payable benefit percentage (source)"
+              value={pay.payableBenefitPercentage == null ? "Not available in source report" : `${pay.payableBenefitPercentage}%`}
+            />
+            <PayRow
+              label="ATP pay period (source)"
+              value={pay.payPeriodFromDate && pay.payPeriodThroughDate ? `${pay.payPeriodFromDate} — ${pay.payPeriodThroughDate}` : "Not available in source report"}
             />
             <PayRow
               label="Estimated daily base rate"
@@ -1138,7 +1141,7 @@ function PayTab({ employee }) {
                 value={money(netDisability)}
               />
               <PayRow
-                label="Twilio top-up component (33.33%)"
+                label="Estimated top-up component (33.33%)"
                 value={money(topUp)}
               />
 
@@ -1429,8 +1432,7 @@ function BenefitsTab({ employee }) {
       name: "Lyra",
       icon: "◌",
       tone: "cyan",
-      description:
-        "Confidential mental health coaching and therapy support for you and eligible dependents.",
+      description: "Confidential mental health coaching and therapy support for you and eligible dependents.",
       action: "Explore mental health support",
       best: "Stress, anxiety, caregiving, transitions",
     },
@@ -1438,8 +1440,7 @@ function BenefitsTab({ employee }) {
       name: "Hinge Health",
       icon: "⌁",
       tone: "green",
-      description:
-        "Digital musculoskeletal care and guided exercise support for back, joint, and mobility needs.",
+      description: "Digital musculoskeletal care and guided exercise support for back, joint, and mobility needs.",
       action: "Explore MSK support",
       best: "Back, neck, joint, and mobility support",
     },
@@ -1447,8 +1448,7 @@ function BenefitsTab({ employee }) {
       name: "Transform Oncology",
       icon: "✦",
       tone: "pink",
-      description:
-        "Navigation support for employees and families facing a cancer diagnosis or treatment journey.",
+      description: "Navigation support for employees and families facing a cancer diagnosis or treatment journey.",
       action: "Explore oncology navigation",
       best: "Care navigation and second-opinion support",
     },
@@ -1456,12 +1456,14 @@ function BenefitsTab({ employee }) {
       name: "Cleo",
       icon: "♥",
       tone: "violet",
-      description:
-        "Family support for pregnancy, parenting, caregiving, and major family transitions.",
+      description: "Family support for pregnancy, parenting, caregiving, and major family transitions.",
       action: "Explore family support",
       best: "Parenthood and caregiving",
     },
   ];
+
+  const leaveReasonText = safeText(employee?.leaveReason);
+  const safeLeaveReason = leaveReasonText || "leave plan";
 
   return (
     <div className="space-y-5">
@@ -1471,46 +1473,25 @@ function BenefitsTab({ employee }) {
           Specialized Benefits
         </h2>
         <p className="mt-2 text-sm text-slate-400">
-          Optional resources that may complement your{" "}
-          {employee.leaveReason.toLowerCase()} plan. Eligibility and
-          availability vary by benefit enrollment and location.
+          Optional resources that may complement your {safeLeaveReason} plan. Eligibility and availability vary by benefit enrollment and location.
         </p>
       </Panel>
 
       <div className="grid gap-5 md:grid-cols-2">
         {benefits.map((benefit) => (
-          <Panel
-            key={benefit.name}
-            className="group p-6 transition hover:-translate-y-1 hover:border-slate-500"
-          >
+          <Panel key={benefit.name} className="group p-6 transition hover:-translate-y-1 hover:border-slate-500">
             <div className="flex items-start justify-between">
-              <div
-                className={`grid h-12 w-12 place-items-center rounded-2xl text-xl ${
-                  benefit.tone === "cyan"
-                    ? "bg-cyan-400/10 text-cyan-300"
-                    : benefit.tone === "green"
-                      ? "bg-emerald-400/10 text-emerald-300"
-                      : benefit.tone === "pink"
-                        ? "bg-rose-400/10 text-rose-300"
-                        : "bg-violet-400/10 text-violet-300"
-                }`}
-              >
+              <div className={`grid h-12 w-12 place-items-center rounded-2xl text-xl ${benefit.tone === "cyan" ? "bg-cyan-400/10 text-cyan-300" : benefit.tone === "green" ? "bg-emerald-400/10 text-emerald-300" : benefit.tone === "pink" ? "bg-rose-400/10 text-rose-300" : "bg-violet-400/10 text-violet-300"}`}>
                 {benefit.icon}
               </div>
               <Badge tone={benefit.tone}>Available resource</Badge>
             </div>
 
-            <h3 className="mt-5 font-serif text-xl font-bold">
-              {benefit.name}
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-slate-400">
-              {benefit.description}
-            </p>
+            <h3 className="mt-5 font-serif text-xl font-bold">{benefit.name}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-400">{benefit.description}</p>
 
             <div className="mt-4 rounded-xl bg-slate-900/45 p-3 text-xs text-slate-300">
-              <strong className="text-white">Best for:</strong>{" "}
-              {benefit.best}
+              <strong className="text-white">Best for:</strong> {benefit.best}
             </div>
 
             <button className="mt-5 text-sm font-bold text-cyan-300 hover:text-cyan-200">
@@ -1527,7 +1508,7 @@ function ChatTab({ employee }) {
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      text: `Hi ${employee.firstName} — I’ve verified your profile. I can explain your ${employee.leaveProduct} plan, ${employee.claimStatus.toLowerCase()}, pay estimate, medical-certification timing, or return-to-work steps. What would help most?`,
+      text: `Hi ${employee.firstName} — I’ve verified your profile. I can help with the administrative information available in your leave record. What would help most?`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -1540,22 +1521,23 @@ function ChatTab({ employee }) {
   ];
 
   const answer = (question) => {
-    const q = question.toLowerCase();
+    const q = String(question ?? "").toLowerCase();
+    const claimStatus = safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE);
+    const leaveProduct = safeText(employee?.leaveProduct, "Leave product is not available in the source report.");
+    const activeStage = safeText(employee?.activeStage, TEXT_NOT_AVAILABLE);
+    const certStatus = safeText(employee?.certStatus, TEXT_NOT_AVAILABLE);
+    const state = safeText(employee?.state, "");
 
     if (q.includes("pay") || q.includes("salary")) {
-      return `Your verified biweekly base salary is ${money(
-        employee.biweeklySalary
-      )}. During eligible Day 8+ disability periods, the illustration is 66.67% from the disability component plus a 33.33% Twilio top-up, coordinated with any ${
-        employee.state
-      } benefit offset. Final amounts depend on eligibility, taxes, deductions, and official awards.`;
+      return `Pay information is not available in this source report. The payroll team can confirm the latest pay and top-up guidance in the official source record.`;
     }
 
     if (q.includes("status") || q.includes("claim")) {
-      return `The latest normalized status in this demo record is “${employee.claimStatus}.” For the official live status, check MyLincoln Portal and your latest Lincoln email. Lincoln Financial owns the final claim determination.`;
+      return `The latest normalized status in this demo record is “${claimStatus}.” For the official live status, check MyLincoln Portal and your latest Lincoln email. Lincoln Financial owns the final claim determination.`;
     }
 
     if (q.includes("next") || q.includes("do")) {
-      return `Your active stage is ${employee.activeStage}. Start by checking the Lifecycle To-Dos tab, reviewing any new Lincoln message, and confirming that your manager and HRBP know the timing without sharing medical details.`;
+      return `Your active stage is ${activeStage}. Start by checking the Lifecycle To-Dos tab, reviewing any new Lincoln message, and confirming that your manager and HRBP know the timing without sharing medical details.`;
     }
 
     if (q.includes("return") || q.includes("rtw")) {
@@ -1563,10 +1545,10 @@ function ChatTab({ employee }) {
     }
 
     if (q.includes("cert") || q.includes("document")) {
-      return `Your certification indicator is “${employee.certStatus}.” Standard timing is Day 1 confirmation, specialist outreach on Days 2–5, and complete certification by calendar Day 15. A one-time 7-day grace period may apply only when incomplete documents are submitted on Days 13–15.`;
+      return `Your certification indicator is “${certStatus}.” Standard timing is Day 1 confirmation, specialist outreach on Days 2–5, and complete certification by calendar Day 15. A one-time 7-day grace period may apply only when incomplete documents are submitted on Days 13–15.`;
     }
 
-    return `I can help with that at an informational level. Based on your verified profile, your leave product is ${employee.leaveProduct} and your active stage is ${employee.activeStage}. Ask me about pay, documents, status, next steps, or return-to-work planning.`;
+    return `I can help with that at an informational level. Based on your verified profile, your leave product is ${leaveProduct} and your active stage is ${activeStage}. Ask me about pay, documents, status, next steps, or return-to-work planning.`;
   };
 
   const send = (text = input) => {
@@ -1716,6 +1698,9 @@ export default function App() {
       />
 
       <main className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:py-8">
+        <p role="status" aria-live="polite" className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+          {SUCCESS_STATUS_MESSAGE}
+        </p>
         <SummaryCards employee={employee} />
         <TabBar active={activeTab} setActive={setActiveTab} />
         {content}
