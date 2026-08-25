@@ -7,6 +7,25 @@ body,
   margin: 0;
 }
 
+:root {
+  color-scheme: dark;
+  --navy-bg: #000D25;
+  --surface: #0F1830;
+  --border: #38425E;
+  --muted: #9AA0B4;
+  --disabled: #656E87;
+  --blue: #1B66EE;
+  --red: #EF223A;
+  --text: #FFFFFF;
+  --light-surface: #F7F4F7;
+}
+
+html {
+  background: var(--navy-bg);
+}
+
 body {
-  background: #0e1425;
+  background: var(--navy-bg);
+  color: var(--text);
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
 }

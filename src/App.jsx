@@ -107,11 +107,11 @@ const normalize = (value) => String(value || "").trim().toLowerCase();
 
 function Badge({ children, tone = "cyan" }) {
   const tones = {
-    cyan: "border-cyan-400/30 bg-cyan-400/10 text-cyan-300",
-    pink: "border-rose-400/30 bg-rose-400/10 text-rose-300",
-    amber: "border-amber-400/30 bg-amber-400/10 text-amber-300",
-    green: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
-    violet: "border-violet-400/30 bg-violet-400/10 text-violet-300",
+    cyan: "border-[#38425E] bg-[#0F1830] text-[#F7F4F7]",
+    pink: "border-[#EF223A]/40 bg-[#EF223A]/10 text-[#EF223A]",
+    amber: "border-[#656E87] bg-[#38425E]/20 text-[#F7F4F7]",
+    green: "border-[#38425E] bg-[#38425E]/15 text-[#F7F4F7]",
+    violet: "border-[#1B66EE]/40 bg-[#1B66EE]/10 text-[#1B66EE]",
   };
 
   return (
@@ -126,7 +126,7 @@ function Badge({ children, tone = "cyan" }) {
 function Panel({ children, className = "" }) {
   return (
     <section
-      className={`rounded-2xl border border-slate-700/90 bg-[#1a2035] shadow-[0_16px_42px_rgba(3,8,24,.18)] ${className}`}
+      className={`rounded-2xl border border-[#38425E] bg-[#0F1830]/90 shadow-[0_16px_42px_rgba(0,13,37,.22)] ${className}`}
     >
       {children}
     </section>
@@ -136,16 +136,16 @@ function Panel({ children, className = "" }) {
 function Field({ label, ...props }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">
+      <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#9AA0B4]">
         {label}
       </span>
       <input
         required
         {...props}
-        className={`w-full rounded-xl border px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15 ${
+        className={`w-full rounded-xl border px-4 py-3 text-sm text-white outline-none transition placeholder:text-[#656E87] focus:border-[#1B66EE] focus:ring-2 focus:ring-[#1B66EE]/15 ${
           props.disabled
-            ? "cursor-not-allowed border-slate-700 bg-slate-950 text-slate-500 opacity-60"
-            : "border-slate-600 bg-[#0f1628]"
+            ? "cursor-not-allowed border-[#38425E] bg-[#000D25] text-[#656E87] opacity-60"
+            : "border-[#38425E] bg-[#000D25]"
         }`}
       />
     </label>
@@ -154,23 +154,23 @@ function Field({ label, ...props }) {
 
 function CheckItem({ children, checked, onChange, accent = "cyan" }) {
   const colors = {
-    cyan: "accent-cyan-400",
-    amber: "accent-amber-400",
-    violet: "accent-violet-400",
-    green: "accent-emerald-400",
+    cyan: "accent-[#1B66EE]",
+    amber: "accent-[#656E87]",
+    violet: "accent-[#1B66EE]",
+    green: "accent-[#1B66EE]",
   };
 
   return (
-    <label className="group flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 transition hover:bg-slate-800/50">
+    <label className="group flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 transition hover:bg-[#38425E]/10">
       <input
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className={`mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 ${colors[accent]}`}
+        className={`mt-0.5 h-4 w-4 rounded border-[#38425E] bg-[#000D25] ${colors[accent]}`}
       />
       <span
         className={`text-sm leading-5 ${
-          checked ? "text-slate-500 line-through" : "text-slate-200"
+          checked ? "text-[#656E87] line-through" : "text-[#F7F4F7]"
         }`}
       >
         {children}
@@ -259,7 +259,7 @@ function PasswordGate({ onUnlock }) {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-center text-xs text-slate-300">
+            <div className="grid grid-cols-3 gap-3 text-center text-xs text-[#F7F4F7]">
               {[
                 ["◈", "Restricted Demo"],
                 ["⌁", "Personalized plan"],
@@ -267,9 +267,9 @@ function PasswordGate({ onUnlock }) {
               ].map(([icon, label]) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-slate-600/60 bg-slate-950/20 p-4"
+                  className="rounded-xl border border-[#38425E] bg-[#000D25]/40 p-4"
                 >
-                  <div className="mb-2 text-xl text-cyan-300">{icon}</div>
+                  <div className="mb-2 text-xl text-[#1B66EE]">{icon}</div>
                   {label}
                 </div>
               ))}
@@ -292,7 +292,7 @@ function PasswordGate({ onUnlock }) {
 
             <h2 className="mt-5 font-serif text-3xl font-bold">Welcome</h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-400">
+            <p className="mt-2 text-sm leading-6 text-[#9AA0B4]">
               HTTPS encryption is enforced by the Twilio hosting platform
             </p>
 
@@ -332,14 +332,14 @@ function PasswordGate({ onUnlock }) {
               <button
                 type="submit"
                 disabled={isLocked}
-                className="w-full rounded-xl bg-gradient-to-r from-[#ef223a] to-[#e82e85] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl bg-[#1B66EE] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#1B66EE]/20 transition hover:bg-[#1B66EE]/90 focus:outline-none focus:ring-2 focus:ring-[#1B66EE]/30 disabled:cursor-not-allowed disabled:bg-[#656E87] disabled:opacity-70"
               >
                 {isLocked ? "Access locked for 30 seconds" : "Continue to employee verification →"}
               </button>
             </form>
 
-            <div className="mt-8 border-t border-slate-700/80 pt-6">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+            <div className="mt-8 border-t border-[#38425E] pt-6">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[#9AA0B4]">
                 Demo access control only. Production access must use authenticated server-side controls such as Twilio SSO.
               </p>
             </div>
@@ -494,14 +494,14 @@ function IdentityVerificationGate({ onVerify }) {
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-gradient-to-r from-[#ef223a] to-[#e82e85] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl bg-[#1B66EE] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#1B66EE]/20 transition hover:bg-[#1B66EE]/90 focus:outline-none focus:ring-2 focus:ring-[#1B66EE]/30 disabled:cursor-not-allowed disabled:bg-[#656E87] disabled:opacity-70"
               >
                 Verify & open my leave plan →
               </button>
             </form>
 
-            <div className="mt-8 border-t border-slate-700/80 pt-6">
-              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">
+            <div className="mt-8 border-t border-[#38425E] pt-6">
+              <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-[#9AA0B4]">
                 Demo profiles
               </p>
 
@@ -517,7 +517,7 @@ function IdentityVerificationGate({ onVerify }) {
                         employeeId: employee.employeeId,
                       })
                     }
-                    className="rounded-lg border border-slate-700 bg-slate-900/45 px-3 py-2 text-left text-xs text-slate-300 transition hover:border-cyan-400/50 hover:text-white"
+                    className="rounded-lg border border-[#38425E] bg-[#000D25]/60 px-3 py-2 text-left text-xs text-[#F7F4F7] transition hover:border-[#1B66EE] hover:text-white"
                   >
                     {employee.firstName} {employee.lastName} ·{" "}
                     {employee.employeeId}
@@ -525,7 +525,7 @@ function IdentityVerificationGate({ onVerify }) {
                 ))}
               </div>
 
-              <p className="mt-5 text-xs leading-5 text-slate-500">
+              <p className="mt-5 text-xs leading-5 text-[#9AA0B4]">
                 Demo only. Production identity verification must be enforced by
                 authenticated server-side access controls.
               </p>
@@ -540,7 +540,7 @@ function IdentityVerificationGate({ onVerify }) {
 function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
   return (
     <>
-      <header className="bg-[#232b45] px-5 py-5 shadow-xl">
+      <header className="bg-[#0F1830] px-5 py-5 shadow-xl">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#ff5b52] to-[#ef223a] text-lg shadow-lg">
@@ -555,7 +555,7 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
                 <Badge tone="pink">Internal Demo</Badge>
               </div>
 
-              <p className="mt-0.5 text-xs text-slate-400 sm:text-sm">
+              <p className="mt-0.5 text-xs text-[#9AA0B4] sm:text-sm">
                 Empathetic Leave Guidance, Salary Top-Up Calculator & ADA
                 Interactive Assistant
               </p>
@@ -565,51 +565,51 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => window.print()}
-              className="rounded-lg border border-slate-600 bg-slate-800/40 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"
+              className="rounded-lg border border-[#38425E] bg-[#000D25] px-4 py-2 text-sm font-semibold text-[#F7F4F7] hover:bg-[#1B66EE]/10"
             >
               ▣ Print Plan
             </button>
 
             <button
               onClick={onOpenChat}
-              className="rounded-lg bg-gradient-to-r from-[#ef223a] to-[#e82e85] px-4 py-2 text-sm font-bold text-white hover:brightness-110"
+              className="rounded-lg bg-[#1B66EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#1B66EE]/90"
             >
               ✦ AI Leave Advisor
             </button>
 
             <button
               onClick={onSignOut}
-              className="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700"
+              className="rounded-lg border border-[#38425E] px-4 py-2 text-sm text-[#F7F4F7] hover:bg-[#1B66EE]/10"
             >
               Switch profile
             </button>
 
             <button
               onClick={onLockDemo}
-              className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-500/20"
+              className="rounded-lg border border-[#EF223A]/40 bg-[#EF223A]/10 px-4 py-2 text-sm font-semibold text-[#F7F4F7] hover:bg-[#EF223A]/15"
             >
               Lock demo
             </button>
           </div>
         </div>
 
-        <div className="mx-auto mt-5 max-w-7xl rounded-xl border border-cyan-400/20 bg-slate-950/25 px-4 py-3 text-sm text-slate-200">
-          <span className="mr-2 text-emerald-300">●</span>
+        <div className="mx-auto mt-5 max-w-7xl rounded-xl border border-[#38425E] bg-[#000D25]/60 px-4 py-3 text-sm text-[#F7F4F7]">
+          <span className="mr-2 text-[#1B66EE]">●</span>
           <strong>Verified Profile:</strong> {employee.firstName}{" "}
-          {employee.lastName} <span className="text-slate-500">|</span> ID:{" "}
-          {employee.employeeId} <span className="text-slate-500">|</span>{" "}
+          {employee.lastName} <span className="text-[#9AA0B4]">|</span> ID:{" "}
+          {employee.employeeId} <span className="text-[#9AA0B4]">|</span>{" "}
           Location: {employee.location}
         </div>
       </header>
 
-      <div className="border-y border-slate-800 bg-[#10172a] px-5 py-2.5 text-xs text-slate-400">
+      <div className="border-y border-[#38425E] bg-[#0F1830] px-5 py-2.5 text-xs text-[#9AA0B4]">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-1 sm:flex-row">
           <span>
-            <strong className="text-slate-200">ⓘ Disclaimer:</strong>{" "}
+            <strong className="text-[#F7F4F7]">ⓘ Disclaimer:</strong>{" "}
             Informational guidance and estimates only. Lincoln Financial and
             applicable agencies make official determinations.
           </span>
-          <span className="shrink-0 text-emerald-300">
+          <span className="shrink-0 text-[#1B66EE]">
             ♢ PHI-Free Demo Data
           </span>
         </div>
@@ -1721,7 +1721,7 @@ export default function App() {
         {content}
       </main>
 
-      <footer className="mt-10 border-t border-slate-800 px-5 py-6 text-center text-xs text-slate-500">
+      <footer className="mt-10 border-t border-[#38425E] px-5 py-6 text-center text-xs text-[#9AA0B4]">
         Twilio LOA Employee Advocate · Internal demo · Informational support
         only
       </footer>
@@ -1736,16 +1736,32 @@ function AppStyles() {
 
       :root {
         color-scheme: dark;
+        --navy: #000D25;
+        --navy-surface: #0F1830;
+        --border: #38425E;
+        --muted: #9AA0B4;
+        --disabled: #656E87;
+        --blue: #1B66EE;
+        --red: #EF223A;
+        --text: #FFFFFF;
+        --surface-text: #F7F4F7;
       }
 
       html {
         scroll-behavior: smooth;
+        background: var(--navy);
       }
 
       body {
         margin: 0;
-        background: #0e1425;
+        background: var(--navy);
+        color: var(--text);
         font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+      }
+
+      #root {
+        min-height: 100vh;
+        background: var(--navy);
       }
 
       .font-serif {
@@ -1754,6 +1770,78 @@ function AppStyles() {
 
       * {
         box-sizing: border-box;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+        box-shadow: 0 0 0 3px rgba(27, 102, 238, 0.18);
+      }
+
+      .border-slate-700,
+      .border-slate-700\/80,
+      .border-slate-700\/90,
+      .border-slate-700\/70,
+      .border-slate-600,
+      .border-slate-600\/60,
+      .border-slate-800,
+      .border-slate-800\/40,
+      .border-slate-800\/50 {
+        border-color: var(--border) !important;
+      }
+
+      .bg-\[#0e1425\],
+      .bg-\[#000D25\],
+      .bg-\[#10172a\],
+      .bg-\[#1a2035\],
+      .bg-\[#171e32\],
+      .bg-\[#232b45\],
+      .bg-slate-900,
+      .bg-slate-900\/45,
+      .bg-slate-950,
+      .bg-slate-950\/25,
+      .bg-slate-800,
+      .bg-slate-800\/40,
+      .bg-slate-800\/50 {
+        background-color: var(--navy) !important;
+      }
+
+      .text-slate-100,
+      .text-slate-200,
+      .text-slate-300 {
+        color: var(--surface-text) !important;
+      }
+
+      .text-slate-400,
+      .text-slate-500 {
+        color: var(--muted) !important;
+      }
+
+      .text-slate-600 {
+        color: var(--disabled) !important;
+      }
+
+      .bg-\[#0F1830\],
+      .bg-\[#0f1830\],
+      .bg-\[#0F1830\]\/90,
+      .bg-\[#0F1830\]\/80,
+      .bg-\[#0F1830\]\/60,
+      .bg-\[#0F1830\]\/40 {
+        background-color: var(--navy-surface) !important;
+      }
+
+      .bg-gradient-to-r {
+        background-image: none !important;
       }
 
       @media print {
