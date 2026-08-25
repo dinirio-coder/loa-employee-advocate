@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const EMPLOYEES = [
   {
@@ -142,7 +142,11 @@ function Field({ label, ...props }) {
       <input
         required
         {...props}
-        className="w-full rounded-xl border border-slate-600 bg-[#0f1628] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15"
+        className={`w-full rounded-xl border px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15 ${
+          props.disabled
+            ? "cursor-not-allowed border-slate-700 bg-slate-950 text-slate-500 opacity-60"
+            : "border-slate-600 bg-[#0f1628]"
+        }`}
       />
     </label>
   );
@@ -175,7 +179,178 @@ function CheckItem({ children, checked, onChange, accent = "cyan" }) {
   );
 }
 
-function LoginGate({ onVerify }) {
+function PasswordGate({ onUnlock }) {
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [error, setError] = useState("");
+  const [attempts, setAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    if (!isLocked) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setIsLocked(false);
+      setAttempts(0);
+    }, 30000);
+
+    return () => window.clearTimeout(timer);
+  }, [isLocked]);
+
+  const update = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    if (error) setError("");
+  };
+
+  const submit = (event) => {
+    event.preventDefault();
+
+    if (isLocked) return;
+
+    const validUsername = form.username === "admin";
+    const validPassword = form.password === "TweekWeek2026!";
+
+    if (!validUsername || !validPassword) {
+      const nextAttempts = attempts + 1;
+      setAttempts(nextAttempts);
+      setError("Invalid username or password");
+      setForm((current) => ({ ...current, password: "" }));
+
+      if (nextAttempts >= 5) {
+        setIsLocked(true);
+      }
+      return;
+    }
+
+    setAttempts(0);
+    setIsLocked(false);
+    setError("");
+    onUnlock();
+  };
+
+  return (
+    <main className="relative min-h-screen overflow-hidden bg-[#0e1425] px-5 py-10 text-white">
+      <div className="pointer-events-none absolute inset-0 opacity-80 [background-image:radial-gradient(circle_at_20%_15%,rgba(34,211,238,.13),transparent_28%),radial-gradient(circle_at_85%_10%,rgba(239,34,58,.13),transparent_24%),radial-gradient(circle_at_65%_90%,rgba(139,92,246,.12),transparent_30%)]" />
+
+      <div className="relative mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
+        <div className="grid w-full overflow-hidden rounded-[28px] border border-slate-700/80 bg-[#171e32] shadow-2xl lg:grid-cols-[1.05fr_.95fr]">
+          <div className="hidden min-h-[620px] flex-col justify-between bg-[#232b45] p-12 lg:flex">
+            <div>
+              <div className="mb-10 flex items-center gap-4">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#ff4b56] to-[#ef223a] text-xl shadow-lg shadow-rose-950/30">
+                  ◆
+                </div>
+                <div>
+                  <div className="font-serif text-2xl font-bold">
+                    Twilio LOA Employee Advocate
+                  </div>
+                  <div className="mt-1 text-sm text-slate-400">
+                    Private, personalized leave guidance
+                  </div>
+                </div>
+              </div>
+
+              <h1 className="max-w-lg font-serif text-5xl font-bold leading-[1.08]">
+                Your leave plan, made clear.
+              </h1>
+
+              <p className="mt-5 max-w-lg text-lg leading-8 text-slate-300">
+                Verify your profile to see a personalized lifecycle, pay
+                estimate, documentation clock, ADA draft, and benefit routing.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 text-center text-xs text-slate-300">
+              {[
+                ["◈", "Restricted Demo"],
+                ["⌁", "Personalized plan"],
+                ["♢", "PHI-Free Demo Data"],
+              ].map(([icon, label]) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-slate-600/60 bg-slate-950/20 p-4"
+                >
+                  <div className="mb-2 text-xl text-cyan-300">{icon}</div>
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-7 sm:p-10 lg:p-12">
+            <div className="mb-8 lg:hidden">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#ef223a]">
+                  ◆
+                </div>
+                <div className="font-serif text-xl font-bold">
+                  Twilio LOA Advocate
+                </div>
+              </div>
+            </div>
+
+            <Badge tone="pink">Restricted Demo</Badge>
+
+            <h2 className="mt-5 font-serif text-3xl font-bold">Welcome</h2>
+
+            <p className="mt-2 text-sm leading-6 text-slate-400">
+              HTTPS encryption is enforced by the Twilio hosting platform
+            </p>
+
+            <form onSubmit={submit} className="mt-8 space-y-5" noValidate>
+              <Field
+                label="Username"
+                value={form.username}
+                onChange={(event) => update("username", event.target.value)}
+                autoComplete="username"
+                disabled={isLocked}
+              />
+
+              <Field
+                label="Password"
+                type="password"
+                value={form.password}
+                onChange={(event) => update("password", event.target.value)}
+                autoComplete="current-password"
+                disabled={isLocked}
+              />
+
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+                >
+                  {error}
+                </div>
+              )}
+
+              {isLocked && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  Too many failed attempts. Please wait 30 seconds before retrying.
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLocked}
+                className="w-full rounded-xl bg-gradient-to-r from-[#ef223a] to-[#e82e85] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLocked ? "Access locked for 30 seconds" : "Continue to employee verification →"}
+              </button>
+            </form>
+
+            <div className="mt-8 border-t border-slate-700/80 pt-6">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+                Demo access control only. Production access must use authenticated server-side controls such as Twilio SSO.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function IdentityVerificationGate({ onVerify }) {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -244,7 +419,7 @@ function LoginGate({ onVerify }) {
               {[
                 ["◈", "Three-field check"],
                 ["⌁", "Personalized plan"],
-                ["♢", "Zero PHI stored"],
+                ["♢", "PHI-Free Demo Data"],
               ].map(([icon, label]) => (
                 <div
                   key={label}
@@ -269,7 +444,7 @@ function LoginGate({ onVerify }) {
               </div>
             </div>
 
-            <Badge tone="pink">Secure profile verification</Badge>
+            <Badge tone="pink">Employee Record Check</Badge>
 
             <h2 className="mt-5 font-serif text-3xl font-bold">Welcome</h2>
 
@@ -319,7 +494,7 @@ function LoginGate({ onVerify }) {
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-gradient-to-r from-[#ef223a] to-[#e82e85] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                className="w-full rounded-xl bg-gradient-to-r from-[#ef223a] to-[#e82e85] px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-950/30 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-rose-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Verify & open my leave plan →
               </button>
@@ -362,7 +537,7 @@ function LoginGate({ onVerify }) {
   );
 }
 
-function Header({ employee, onSignOut, onOpenChat }) {
+function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
   return (
     <>
       <header className="bg-[#232b45] px-5 py-5 shadow-xl">
@@ -408,6 +583,13 @@ function Header({ employee, onSignOut, onOpenChat }) {
             >
               Switch profile
             </button>
+
+            <button
+              onClick={onLockDemo}
+              className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-500/20"
+            >
+              Lock demo
+            </button>
           </div>
         </div>
 
@@ -428,7 +610,7 @@ function Header({ employee, onSignOut, onOpenChat }) {
             applicable agencies make official determinations.
           </span>
           <span className="shrink-0 text-emerald-300">
-            ♢ Zero PHI stored
+            ♢ PHI-Free Demo Data
           </span>
         </div>
       </div>
@@ -1481,6 +1663,7 @@ function ChatTab({ employee }) {
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [employee, setEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState("todos");
 
@@ -1496,11 +1679,20 @@ export default function App() {
     return <TodosTab employee={employee} />;
   }, [activeTab, employee]);
 
+  if (!isAuthenticated) {
+    return (
+      <>
+        <AppStyles />
+        <PasswordGate onUnlock={() => setIsAuthenticated(true)} />
+      </>
+    );
+  }
+
   if (!employee) {
     return (
       <>
         <AppStyles />
-        <LoginGate onVerify={setEmployee} />
+        <IdentityVerificationGate onVerify={setEmployee} />
       </>
     );
   }
@@ -1514,6 +1706,11 @@ export default function App() {
         onSignOut={() => {
           setEmployee(null);
           setActiveTab("todos");
+        }}
+        onLockDemo={() => {
+          setEmployee(null);
+          setActiveTab("todos");
+          setIsAuthenticated(false);
         }}
         onOpenChat={() => setActiveTab("chat")}
       />
