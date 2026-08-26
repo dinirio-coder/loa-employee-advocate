@@ -237,7 +237,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
     "applicationOwner": "Employee",
     "lincolnCoordination": "Lincoln deducts assumed state maximum from STD",
     "awardLetterRecipient": "Lincoln Financial",
-    "eligibilityDescription": "Worked at least 20 calendar weeks earning $303+/week or earned $15,200 in NJ base year.",
+    "eligibilityDescription": "Worked at least 20 calendar weeks earning $310+/week or earned $15,500 in NJ base year.",
     "officialProgramUrl": "https://www.nj.gov/labor/myleavebenefits/worker/fli/",
     "lastVerifiedDate": "2026-08-26"
   },
@@ -293,11 +293,11 @@ export const STATE_BENEFIT_RULES = Object.freeze([
     "stateName": "Rhode Island",
     "programName": "Temporary Caregiver Insurance (TCI)",
     "programStatus": "Active",
-    "benefitsStartDate": "2014-01-01",
+    "benefitsStartDate": "2026-07-01",
     "benefitsEndDate": null,
     "maximumYear": 2026,
-    "maximumWeeklyBenefit": 1070,
-    "familyLeaveWeeks": 6,
+    "maximumWeeklyBenefit": 1150,
+    "familyLeaveWeeks": 8,
     "medicalLeaveWeeks": null,
     "coveredLeaveCategories": [
       "BONDING",
