@@ -17,6 +17,7 @@ import {
 import { getEmployeePriorityActions } from "./data/actionPlanUtils";
 import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
+import { getEmployeeLifecycle } from "./data/lifecycleUtils";
 
 const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
@@ -988,6 +989,107 @@ function TodosTab({ employee }) {
   );
 }
 
+function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleItem }) {
+  const panelId = `lifecycle-panel-${stage.id}`;
+  const completed = stage.items.filter((item) => checked[item.id]).length;
+  const accents = {
+    cyan: "border-l-cyan-400 text-cyan-300",
+    amber: "border-l-amber-400 text-amber-300",
+    violet: "border-l-violet-400 text-violet-300",
+    green: "border-l-emerald-400 text-emerald-300",
+  };
+
+  return (
+    <section className={`rounded-xl border border-slate-700 border-l-4 bg-[#0F1830]/90 ${accents[stage.accent].split(" ")[0]}`}>
+      <h3>
+        <button
+          type="button"
+          id={`${panelId}-header`}
+          aria-expanded={isOpen}
+          aria-controls={panelId}
+          aria-label={`${isOpen ? "Collapse" : "Expand"} ${stage.title}`}
+          onClick={() => onToggleStage(stage.id)}
+          className="flex min-h-16 w-full items-center justify-between gap-4 p-4 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
+        >
+          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-sm font-bold">{stage.number}. {stage.title}</span>
+            <span className="text-xs text-slate-400">{stage.timeframe}</span>
+            {stage.status === "suggested" && <Badge tone="green">Suggested from your current record</Badge>}
+          </span>
+          <span className="flex shrink-0 items-center gap-3 text-xs text-slate-400">
+            <span>{completed} of {stage.items.length} reviewed</span>
+            <span aria-hidden="true" className={`text-xl transition-transform ${isOpen ? "rotate-180" : ""}`}>⌄</span>
+          </span>
+        </button>
+      </h3>
+      {isOpen && (
+        <div id={panelId} role="region" aria-labelledby={`${panelId}-heading`} className="border-t border-slate-700 p-4">
+          <span id={`${panelId}-heading`} className="sr-only">{stage.title} details</span>
+          <p className="text-sm leading-6 text-slate-300">{stage.description}</p>
+          <p className="mt-2 text-xs text-slate-400">{stage.basis}</p>
+          <div className="mt-3 space-y-1">
+            {stage.items.map((item) => (
+              <CheckItem key={item.id} checked={Boolean(checked[item.id])} onChange={() => onToggleItem(item.id)}>
+                <span className="block font-semibold">{item.title}</span>
+                <span className="mt-1 block text-slate-300">{item.description}</span>
+                <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-cyan-300">
+                  <span>Owner: {item.owner}</span><span>{item.timing}</span>
+                </span>
+                {item.dependency && <span className="mt-1 block text-xs text-amber-300">Dependency: {item.dependency}</span>}
+                {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open authorized process <span aria-hidden="true">↗</span></a>}
+              </CheckItem>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LifecycleOverview({ employee }) {
+  const lifecycle = getEmployeeLifecycle(employee);
+  const [openStages, setOpenStages] = useState(() => new Set([lifecycle.suggestedStageId || "pre-leave"]));
+  const [checked, setChecked] = useState({});
+
+  useEffect(() => {
+    setOpenStages(new Set([lifecycle.suggestedStageId || "pre-leave"]));
+    setChecked({});
+  }, [employee?.employeeId]);
+
+  const toggleStage = (id) => setOpenStages((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const setAllStages = (open) => setOpenStages(open ? new Set(lifecycle.stages.map((stage) => stage.id)) : new Set());
+  const focusStage = (id) => {
+    setOpenStages((current) => new Set(current).add(id));
+    window.requestAnimationFrame(() => document.getElementById(`lifecycle-panel-${id}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  return (
+    <div className="space-y-5">
+      <Panel className="p-5 sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div><h2 className="font-serif text-2xl font-bold">Interactive Leave Lifecycle Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage, track your administrative steps, and see who owns the next action.</p></div>
+          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setAllStages(true)} className="app-button app-button--secondary">Expand all</button><button type="button" onClick={() => setAllStages(false)} className="app-button app-button--tertiary">Collapse all</button></div>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-4" aria-label="Lifecycle stages">
+          {lifecycle.stages.map((stage) => <button type="button" key={stage.id} onClick={() => focusStage(stage.id)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${stage.status === "suggested" ? "border-emerald-400/70 bg-emerald-400/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal">Suggested stage</span>}</button>)}
+        </div>
+        {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified from the source record. Stage 1 is open for orientation.</p>}
+        <div className="mt-4 space-y-3">{lifecycle.stages.map((stage) => <LifecycleAccordion key={stage.id} stage={stage} isOpen={openStages.has(stage.id)} checked={checked} onToggleStage={toggleStage} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />)}</div>
+        <p className="mt-4 text-xs text-slate-400">Checklist selections are for this demo session only and do not update Workday or Lincoln Financial.</p>
+      </Panel>
+      <div className="space-y-5">
+        <Panel className="p-5"><h3 className="font-serif text-lg font-bold">Administration Responsibility Matrix</h3><p className="mt-1 text-xs text-slate-400">Who owns each part of your leave experience.</p><div className="mt-4 grid gap-4 md:grid-cols-3"><Responsibility title="Lincoln Financial" tone="cyan" items={["Claim intake and certification review", "Case manager communications", "Authorized documentation process"]} contact="800-377-1568 · MyLincoln Portal" /><Responsibility title="Twilio Leave Operations / Payroll" tone="pink" items={["Salary top-up on payroll", "Workday leave-status updates", "RTW and accommodation coordination"]} contact="leave-ops@twilio.com" /><Responsibility title="Employee / Manager" tone="cyan" items={["Business handoff and priorities", "Calendar and delegation planning", "Return-to-work reintegration"]} contact="Coordinate through your manager and Twilio Leave Operations" /></div></Panel>
+        <Panel className="p-5"><h3 className="font-serif text-lg font-bold">State Statutory Leave Coordination</h3><p className="mt-3 text-sm leading-6 text-slate-300">Your location on file is <strong>{getDisplayLocation(employee)}</strong>. Any state-paid benefit is generally coordinated as an offset, with Twilio paying the eligible remaining difference on regular payroll dates.</p><div className="mt-4 rounded-xl bg-[#10172a] p-4 text-sm text-slate-300"><span className="text-emerald-300">♢</span> <strong>Goal:</strong> coordinate eligible benefits toward 100% of base pay without duplicating payments.</div></Panel>
+        <Panel className="p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-serif text-lg font-bold">Profile Snapshot</h3><Badge tone="green">Verified</Badge></div><dl className="mt-4 divide-y divide-slate-700/70 text-sm">{[["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],["Plan dates", `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`],["Annual base salary", "Pay information is not available in this source report."]].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-6 py-3"><dt className="text-slate-400">{label}</dt><dd className="text-right font-semibold text-slate-100">{value}</dd></div>)}</dl></Panel>
+      </div>
+    </div>
+  );
+}
+
 function PayRow({ label, value, highlight }) {
   return (
     <div className="flex items-center justify-between gap-5">
@@ -1868,7 +1970,7 @@ export default function App() {
       return <BenefitsTab employee={employee} />;
     }
     if (activeTab === "chat") return <ChatTab employee={employee} />;
-    return <TodosTab employee={employee} />;
+    return <LifecycleOverview employee={employee} />;
   }, [activeTab, employee]);
 
   if (!isAuthenticated) {
