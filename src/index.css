@@ -1,4 +1,39 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap");
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --twilio-background: #000025;
+  --twilio-surface: #121A33;
+  --twilio-surface-elevated: #1A2035;
+  --twilio-border: #38425E;
+  --twilio-text: #FFFFFF;
+  --twilio-text-muted: #9AA0B4;
+  --twilio-text-dim: #656E87;
+  --twilio-red: #EF223A;
+  --twilio-blue: #1B66EE;
+  --twilio-success: #35C98B;
+  --twilio-warning: #F2B84B;
+  --twilio-danger: #FF5A68;
+  --twilio-focus: #72A5FF;
+  --twilio-card-radius: 12px;
+  --twilio-control-radius: 8px;
+  --twilio-shadow-subtle: 0 8px 24px rgba(0, 0, 37, 0.18);
+  --twilio-shadow-elevated: 0 18px 48px rgba(0, 0, 37, 0.28);
+  --twilio-content-width: 1280px;
+  --twilio-page-gutter: clamp(16px, 3vw, 40px);
+
+  /* Compatibility aliases keep existing content styling stable during Phase 2. */
+  --navy-bg: var(--twilio-background);
+  --surface: var(--twilio-surface);
+  --border: var(--twilio-border);
+  --muted: var(--twilio-text-muted);
+  --disabled: var(--twilio-text-dim);
+  --blue: var(--twilio-blue);
+  --red: var(--twilio-red);
+  --text: var(--twilio-text);
+  --light-surface: #F7F4F7;
+}
 
 html,
 body,
@@ -7,25 +42,362 @@ body,
   margin: 0;
 }
 
-:root {
-  color-scheme: dark;
-  --navy-bg: #000D25;
-  --surface: #0F1830;
-  --border: #38425E;
-  --muted: #9AA0B4;
-  --disabled: #656E87;
-  --blue: #1B66EE;
-  --red: #EF223A;
-  --text: #FFFFFF;
-  --light-surface: #F7F4F7;
-}
-
 html {
-  background: var(--navy-bg);
+  background: var(--twilio-background);
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--navy-bg);
-  color: var(--text);
+  overflow-x: hidden;
+  background: var(--twilio-background);
+  color: var(--twilio-text);
   font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+  background: var(--twilio-background);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.font-serif {
+  font-family: "DM Serif Display", Georgia, serif !important;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--twilio-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(114, 165, 255, 0.2);
+}
+
+.app-shell {
+  background: var(--twilio-background);
+}
+
+.app-header {
+  border-bottom: 1px solid rgba(56, 66, 94, 0.72);
+  background: var(--twilio-surface);
+  box-shadow: var(--twilio-shadow-subtle);
+}
+
+.app-header__row,
+.app-profile-bar,
+.app-disclaimer__inner {
+  width: min(100%, var(--twilio-content-width));
+  margin-inline: auto;
+}
+
+.app-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px var(--twilio-page-gutter);
+}
+
+.app-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-brand__mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: var(--twilio-control-radius);
+  background: var(--twilio-red);
+  color: var(--twilio-text);
+  box-shadow: 0 6px 18px rgba(239, 34, 58, 0.2);
+}
+
+.app-brand__copy,
+.app-brand__title-row {
+  min-width: 0;
+}
+
+.app-brand__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-brand__title {
+  margin: 0;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
+  line-height: 1.15;
+}
+
+.app-brand__subtitle {
+  margin: 5px 0 0;
+  color: var(--twilio-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.app-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.app-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: var(--twilio-control-radius);
+  padding: 9px 14px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.app-button--primary {
+  background: var(--twilio-blue);
+  color: var(--twilio-text);
+}
+
+.app-button--primary:hover {
+  background: #3D7FF2;
+}
+
+.app-button--secondary {
+  border-color: var(--twilio-border);
+  background: transparent;
+  color: var(--twilio-text);
+}
+
+.app-button--secondary:hover,
+.app-button--tertiary:hover {
+  border-color: var(--twilio-blue);
+  background: rgba(27, 102, 238, 0.12);
+}
+
+.app-button--tertiary {
+  border-color: transparent;
+  background: transparent;
+  color: var(--twilio-text-muted);
+}
+
+.app-button--danger {
+  border-color: rgba(255, 90, 104, 0.72);
+  background: transparent;
+  color: #FF9AA3;
+}
+
+.app-button--danger:hover {
+  background: rgba(239, 34, 58, 0.12);
+}
+
+.app-profile-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--twilio-border);
+  border-bottom: 0;
+  border-radius: var(--twilio-card-radius) var(--twilio-card-radius) 0 0;
+  background: var(--twilio-surface-elevated);
+  padding: 12px var(--twilio-page-gutter);
+  color: var(--twilio-text);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.app-profile-bar__status {
+  color: var(--twilio-success);
+  font-size: 0.8rem;
+}
+
+.app-disclaimer {
+  border-bottom: 1px solid rgba(56, 66, 94, 0.72);
+  background: var(--twilio-background);
+  color: var(--twilio-text-muted);
+  font-size: 0.75rem;
+}
+
+.app-disclaimer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 18px;
+  padding: 10px var(--twilio-page-gutter);
+  line-height: 1.5;
+}
+
+.app-disclaimer__inner > span:last-child {
+  flex: 0 0 auto;
+  color: var(--twilio-text-dim);
+}
+
+.app-content {
+  width: min(100%, var(--twilio-content-width));
+}
+
+.app-footer {
+  border-color: rgba(56, 66, 94, 0.72) !important;
+}
+
+.border-slate-700,
+.border-slate-700\/80,
+.border-slate-700\/90,
+.border-slate-700\/70,
+.border-slate-600,
+.border-slate-600\/60,
+.border-slate-800,
+.border-slate-800\/40,
+.border-slate-800\/50 {
+  border-color: var(--twilio-border) !important;
+}
+
+[class~="bg-[#0e1425]"],
+[class~="bg-[#000D25]"],
+[class~="bg-[#10172a]"],
+[class~="bg-[#1a2035]"],
+[class~="bg-[#171e32]"],
+[class~="bg-[#232b45]"],
+.bg-slate-900,
+.bg-slate-900\/45,
+.bg-slate-950,
+.bg-slate-950\/25,
+.bg-slate-800,
+.bg-slate-800\/40,
+.bg-slate-800\/50 {
+  background-color: var(--twilio-background) !important;
+}
+
+.text-slate-100,
+.text-slate-200,
+.text-slate-300 {
+  color: #F7F4F7 !important;
+}
+
+.text-slate-400,
+.text-slate-500 {
+  color: var(--twilio-text-muted) !important;
+}
+
+.text-slate-600 {
+  color: var(--twilio-text-dim) !important;
+}
+
+[class~="bg-[#0F1830]"],
+[class~="bg-[#0f1830]"],
+[class~="bg-[#0F1830]/90"],
+[class~="bg-[#0F1830]/80"],
+[class~="bg-[#0F1830]/60"],
+[class~="bg-[#0F1830]/40"] {
+  background-color: var(--twilio-surface) !important;
+}
+
+.bg-gradient-to-r {
+  background-image: none !important;
+}
+
+@media (max-width: 980px) {
+  .app-header__row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-header__row {
+    gap: 18px;
+    padding-block: 16px;
+  }
+
+  .app-brand {
+    align-items: flex-start;
+  }
+
+  .app-brand__subtitle {
+    max-width: 31ch;
+  }
+
+  .app-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-button {
+    width: 100%;
+    padding-inline: 8px;
+  }
+
+  .app-profile-bar {
+    border-radius: 0;
+    padding-block: 11px;
+  }
+
+  .app-disclaimer__inner {
+    display: block;
+  }
+
+  .app-disclaimer__inner > span {
+    display: block;
+  }
+
+  .app-disclaimer__inner > span:last-child {
+    margin-top: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  nav,
+  button,
+  footer {
+    display: none !important;
+  }
+
+  body,
+  main,
+  section,
+  header,
+  div {
+    color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }

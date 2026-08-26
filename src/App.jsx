@@ -472,61 +472,60 @@ function IdentityVerificationGate({ onVerify }) {
 function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
   return (
     <>
-      <header className="bg-[#0F1830] px-5 py-5 shadow-xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#ff5b52] to-[#ef223a] text-lg shadow-lg">
+      <header className="app-header">
+        <div className="app-header__row">
+          <div className="app-brand">
+            <div className="app-brand__mark" aria-hidden="true">
               ◆
             </div>
 
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-serif text-xl font-bold sm:text-2xl">
+            <div className="app-brand__copy">
+              <div className="app-brand__title-row">
+                <h1 className="font-serif app-brand__title">
                   Twilio LOA Employee Advocate
                 </h1>
                 <Badge tone="pink">Internal Demo</Badge>
               </div>
 
-              <p className="mt-0.5 text-xs text-[#9AA0B4] sm:text-sm">
-                Empathetic Leave Guidance, Salary Top-Up Calculator & ADA
-                Interactive Assistant
+              <p className="app-brand__subtitle">
+                Personalized Leave Guidance, Pay Insights & Return-to-Work Support
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <nav className="app-actions" aria-label="Employee Advocate actions">
             <button
               onClick={() => window.print()}
-              className="rounded-lg border border-[#38425E] bg-[#000D25] px-4 py-2 text-sm font-semibold text-[#F7F4F7] hover:bg-[#1B66EE]/10"
+              className="app-button app-button--secondary"
             >
-              ▣ Print Plan
+              <span aria-hidden="true">▣</span> Print Plan
             </button>
 
             <button
               onClick={onOpenChat}
-              className="rounded-lg bg-[#1B66EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#1B66EE]/90"
+              className="app-button app-button--primary"
             >
-              ✦ AI Leave Advisor
+              <span aria-hidden="true">✦</span> Ask Advocate
             </button>
 
             <button
               onClick={onSignOut}
-              className="rounded-lg border border-[#38425E] px-4 py-2 text-sm text-[#F7F4F7] hover:bg-[#1B66EE]/10"
+              className="app-button app-button--tertiary"
             >
-              Switch profile
+              Switch Profile
             </button>
 
             <button
               onClick={onLockDemo}
-              className="rounded-lg border border-[#EF223A]/40 bg-[#EF223A]/10 px-4 py-2 text-sm font-semibold text-[#F7F4F7] hover:bg-[#EF223A]/15"
+              className="app-button app-button--danger"
             >
-              Lock demo
+              Lock Demo
             </button>
-          </div>
+          </nav>
         </div>
 
-        <div className="mx-auto mt-5 max-w-7xl rounded-xl border border-[#38425E] bg-[#000D25]/60 px-4 py-3 text-sm text-[#F7F4F7]">
-          <span className="mr-2 text-[#1B66EE]">●</span>
+        <div className="app-profile-bar">
+          <span className="app-profile-bar__status" aria-hidden="true">●</span>
           <strong>Verified Profile:</strong> {employee.firstName}{" "}
           {employee.lastName} <span className="text-[#9AA0B4]">|</span> ID:{" "}
           {employee.employeeId} <span className="text-[#9AA0B4]">|</span>{" "}
@@ -534,8 +533,8 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
         </div>
       </header>
 
-      <div className="border-y border-[#38425E] bg-[#0F1830] px-5 py-2.5 text-xs text-[#9AA0B4]">
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-1 sm:flex-row">
+      <div className="app-disclaimer">
+        <div className="app-disclaimer__inner">
           <span>
             <strong className="text-[#F7F4F7]">ⓘ Disclaimer:</strong>{" "}
             Informational guidance and estimates only. Lincoln Financial and
@@ -1664,7 +1663,6 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <>
-        <AppStyles />
         <PasswordGate onUnlock={() => setIsAuthenticated(true)} />
       </>
     );
@@ -1673,16 +1671,13 @@ export default function App() {
   if (!employee) {
     return (
       <>
-        <AppStyles />
         <IdentityVerificationGate onVerify={setEmployee} />
       </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0e1425] text-white selection:bg-rose-500/40">
-      <AppStyles />
-
+    <div className="app-shell min-h-screen text-white selection:bg-rose-500/40">
       <Header
         employee={employee}
         onSignOut={() => {
@@ -1697,7 +1692,7 @@ export default function App() {
         onOpenChat={() => setActiveTab("chat")}
       />
 
-      <main className="mx-auto max-w-7xl space-y-6 px-5 py-6 sm:py-8">
+      <main className="app-content mx-auto max-w-7xl space-y-6 px-5 py-6 sm:py-8">
         <p role="status" aria-live="polite" className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
           {SUCCESS_STATUS_MESSAGE}
         </p>
@@ -1706,145 +1701,10 @@ export default function App() {
         {content}
       </main>
 
-      <footer className="mt-10 border-t border-[#38425E] px-5 py-6 text-center text-xs text-[#9AA0B4]">
+      <footer className="app-footer mt-10 border-t border-[#38425E] px-5 py-6 text-center text-xs text-[#9AA0B4]">
         Twilio LOA Employee Advocate · Internal demo · Informational support
         only
       </footer>
     </div>
-  );
-}
-
-function AppStyles() {
-  return (
-    <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
-
-      :root {
-        color-scheme: dark;
-        --navy: #000D25;
-        --navy-surface: #0F1830;
-        --border: #38425E;
-        --muted: #9AA0B4;
-        --disabled: #656E87;
-        --blue: #1B66EE;
-        --red: #EF223A;
-        --text: #FFFFFF;
-        --surface-text: #F7F4F7;
-      }
-
-      html {
-        scroll-behavior: smooth;
-        background: var(--navy);
-      }
-
-      body {
-        margin: 0;
-        background: var(--navy);
-        color: var(--text);
-        font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-      }
-
-      #root {
-        min-height: 100vh;
-        background: var(--navy);
-      }
-
-      .font-serif {
-        font-family: 'DM Serif Display', Georgia, serif !important;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      button,
-      input,
-      select,
-      textarea {
-        font: inherit;
-      }
-
-      button:focus-visible,
-      input:focus-visible,
-      select:focus-visible,
-      textarea:focus-visible {
-        outline: 2px solid var(--blue);
-        outline-offset: 2px;
-        box-shadow: 0 0 0 3px rgba(27, 102, 238, 0.18);
-      }
-
-      .border-slate-700,
-      .border-slate-700\/80,
-      .border-slate-700\/90,
-      .border-slate-700\/70,
-      .border-slate-600,
-      .border-slate-600\/60,
-      .border-slate-800,
-      .border-slate-800\/40,
-      .border-slate-800\/50 {
-        border-color: var(--border) !important;
-      }
-
-      .bg-\[#0e1425\],
-      .bg-\[#000D25\],
-      .bg-\[#10172a\],
-      .bg-\[#1a2035\],
-      .bg-\[#171e32\],
-      .bg-\[#232b45\],
-      .bg-slate-900,
-      .bg-slate-900\/45,
-      .bg-slate-950,
-      .bg-slate-950\/25,
-      .bg-slate-800,
-      .bg-slate-800\/40,
-      .bg-slate-800\/50 {
-        background-color: var(--navy) !important;
-      }
-
-      .text-slate-100,
-      .text-slate-200,
-      .text-slate-300 {
-        color: var(--surface-text) !important;
-      }
-
-      .text-slate-400,
-      .text-slate-500 {
-        color: var(--muted) !important;
-      }
-
-      .text-slate-600 {
-        color: var(--disabled) !important;
-      }
-
-      .bg-\[#0F1830\],
-      .bg-\[#0f1830\],
-      .bg-\[#0F1830\]\/90,
-      .bg-\[#0F1830\]\/80,
-      .bg-\[#0F1830\]\/60,
-      .bg-\[#0F1830\]\/40 {
-        background-color: var(--navy-surface) !important;
-      }
-
-      .bg-gradient-to-r {
-        background-image: none !important;
-      }
-
-      @media print {
-        nav,
-        button,
-        footer {
-          display: none !important;
-        }
-
-        body,
-        main,
-        section,
-        header,
-        div {
-          color-adjust: exact;
-          -webkit-print-color-adjust: exact;
-        }
-      }
-    `}</style>
   );
 }
