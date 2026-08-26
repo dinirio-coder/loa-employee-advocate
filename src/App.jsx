@@ -18,6 +18,7 @@ import { getEmployeePriorityActions } from "./data/actionPlanUtils";
 import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
+import { getEmployeePayTimeline } from "./data/payTimelineUtils";
 
 const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
@@ -53,11 +54,10 @@ const SUCCESS_STATUS_MESSAGE =
 
 const TABS = [
   ["todos", "✓", "Lifecycle To-Dos"],
-  ["pay", "$", "Pay & Top-Up Calc"],
-  ["plan", "⌁", "Visual Leave Plan"],
+  ["payTimeline", "$", "Pay & Leave Timeline"],
   ["rtw", "↻", "Return to Work"],
   ["benefits", "♥", "Specialized Benefits"],
-  ["chat", "✦", "AI Advocate Chat"],
+  ["chat", "✦", "Ask Advocate"],
 ];
 
 const money = (value) =>
@@ -950,8 +950,8 @@ function TodosTab({ employee }) {
 
             <div className="mt-4 rounded-xl bg-[#10172a] p-4 text-sm text-slate-300">
               <span className="text-emerald-300">♢</span>{" "}
-              <strong>Goal:</strong> coordinate eligible benefits toward 100%
-              of base pay without duplicating payments.
+              <strong>Goal:</strong> coordinate eligible benefits based on
+              official determinations without duplicating payments.
             </div>
           </Panel>
 
@@ -1090,6 +1090,52 @@ function LifecycleOverview({ employee }) {
   );
 }
 
+const PAY_DISCLAIMER = "Informational guidance based on the available Twilio policy and calculator rules. Pay and benefit amounts are estimates and may be affected by eligibility, plan maximums, state benefits, payroll timing, deductions, taxes, and applicable offsets. Lincoln Financial, Twilio Leave Operations, and the applicable government agency make the official claim, eligibility, and benefit determinations. This is not legal, tax, or medical advice.";
+
+const displayDate = (value) => value ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)) : TEXT_NOT_AVAILABLE;
+const displayMoney = (value) => value == null ? TEXT_NOT_AVAILABLE : money(value);
+
+function PayTimelineTab({ employee }) {
+  const model = getEmployeePayTimeline(employee, { asOfDate: "2026-08-26" });
+  const source = model.sourcePayValues;
+  const planning = model.planningEstimate;
+  const status = model.hasPayData ? model.missingInformation.length ? "Partial source data" : "Source data available" : "Information unavailable";
+  const statusTone = model.hasPayData ? model.missingInformation.length ? "amber" : "green" : "amber";
+  const summaryCards = [
+    ["Biweekly Base Salary", source?.biweeklySalary, "Source record", "Reported biweekly salary; this is not a benefit payment."],
+    ["Daily Business-Day Rate", planning?.dailyBusinessDayRate, planning ? "Planning estimate" : null, "For STD planning only: biweekly salary divided by 10 business days."],
+    ["Lincoln Record or Planning Component", planning?.lincoln?.amount ?? source?.benefitGrossAmount, planning ? "Planning estimate" : source?.benefitGrossAmount == null ? null : "Source record", "A source benefit gross amount is not the same as salary. The STD planning component is illustrative."],
+    ["Twilio Planning Component", planning?.twilio?.amount, planning ? "Planning estimate" : null, "Shown only for the recognized STD planning scenario; it is not an issued payment."],
+  ];
+
+  return (
+    <div className="space-y-5">
+      <Panel className="p-6 sm:p-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay and Leave Timeline</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review source-backed pay information, planning estimates, and important dates from your leave record.</p></div>
+          <Badge tone={statusTone}>{status}</Badge>
+        </div>
+      </Panel>
+
+      <section aria-labelledby="pay-overview-heading">
+        <div className="mb-3 flex items-end justify-between gap-3"><h3 id="pay-overview-heading" className="font-serif text-2xl font-bold">Pay overview</h3><span className="text-xs text-slate-400">Source values and estimates are labeled</span></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {summaryCards.map(([label, value, kind, explanation]) => <Panel key={label} className="p-5"><dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-3 text-xl font-bold">{displayMoney(value)}</dd>{kind && <div className="mt-2 text-xs font-semibold text-[#72A5FF]">{kind}</div>}<p className="mt-3 text-xs leading-5 text-slate-400">{explanation}</p></Panel>)}
+        </div>
+      </section>
+
+      {planning && <Panel className="p-6" aria-labelledby="composition-heading"><h3 id="composition-heading" className="font-serif text-2xl font-bold">Pay composition</h3><p className="mt-1 text-sm text-slate-400">STD planning estimate for a full biweekly base amount; this is not an issued payment.</p><div className="mt-5 flex h-12 overflow-hidden rounded-lg border border-[#38425E]" role="img" aria-label={`Planning estimate composition: Lincoln ${money(planning.lincoln.amount)}, Twilio ${money(planning.twilio.amount)}`}><div className="flex w-2/3 items-center justify-center bg-[#1B66EE] px-2 text-center text-xs font-bold">Lincoln · 66.67%</div><div className="flex w-1/3 items-center justify-center bg-[#EF223A] px-2 text-center text-xs font-bold">Twilio · 33.33%</div></div><div className="mt-4 grid gap-2 text-sm sm:grid-cols-2"><div><strong className="text-[#72A5FF]">Lincoln planning estimate:</strong> {money(planning.lincoln.amount)}</div><div><strong className="text-[#FF8792]">Twilio planning estimate:</strong> {money(planning.twilio.amount)}</div></div><p className="mt-3 text-xs text-slate-400">Combined gross planning target: {money(planning.combinedGross)}. Percentages may vary by rounding.</p></Panel>}
+
+      <Panel className="p-6" aria-labelledby="dates-heading"><div className="flex items-end justify-between gap-3"><div><h3 id="dates-heading" className="font-serif text-2xl font-bold">Important dates</h3><p className="mt-1 text-sm text-slate-400">Dates retain their source labels and ownership.</p></div>{model.nextMilestone?.hasMilestone && <span className="text-xs text-[#72A5FF]">Next: {model.nextMilestone.label}</span>}</div>{model.timelineEvents.length ? <ol className="mt-5 space-y-4 border-l border-[#38425E] pl-5">{model.timelineEvents.map((event) => <li key={event.id} className="relative"><span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${event.status === "past" ? "bg-[#656E87]" : event.status === "current" ? "bg-[#EF223A]" : "bg-[#1B66EE]"}`} /><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><strong>{event.label}</strong><time dateTime={event.date} className="text-sm font-semibold text-[#72A5FF]">{displayDate(event.date)}</time></div><div className="mt-1 text-xs text-slate-400">{event.owner}{event.source ? ` · ${event.source}` : ""}{event.conflict ? " · Source dates conflict" : ""}</div></li>)}</ol> : <p className="mt-5 rounded-lg border border-[#38425E] p-4 text-sm text-slate-400">No reliable source-backed timeline events are available.</p>}</Panel>
+
+      {model.timelineRanges.length > 0 && <Panel className="p-6" aria-labelledby="window-heading"><h3 id="window-heading" className="font-serif text-2xl font-bold">Leave window</h3>{model.timelineRanges.map((range) => <div key={range.id} className="mt-4"><div className="grid gap-3 sm:grid-cols-2"><div><span className="text-xs uppercase tracking-wider text-slate-400">{range.startLabel}</span><strong className="mt-1 block">{displayDate(range.startDate)}</strong></div><div><span className="text-xs uppercase tracking-wider text-slate-400">{range.endLabel}</span><strong className="mt-1 block">{displayDate(range.endDate)}</strong></div></div><div className="mt-4 h-4 rounded-full border border-[#38425E] bg-[#10172a]"><div className="h-full w-full rounded-full bg-[#1B66EE]" /></div><p className="mt-3 text-sm text-slate-300">{range.durationDays} days · {range.durationWeeks.toFixed(1)} weeks · {range.context || "Source record"}</p><p className="mt-1 text-xs text-slate-400">Source: {range.source || TEXT_NOT_AVAILABLE}</p></div>)}</Panel>}
+
+      <Panel className="p-6"><details><summary className="cursor-pointer list-none text-lg font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-[#72A5FF]">How this estimate works</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p><strong>Formula:</strong> {planning ? "STD planning uses biweekly base salary ÷ 10 for the daily business-day rate; days 1–7 use five eligible business days, then 66.67% Lincoln and 33.33% Twilio planning components." : "No planning formula is applied to this record classification."}</p><p><strong>Source fields:</strong> {source ? `${source.sourceSheet || TEXT_NOT_AVAILABLE}; biweekly salary, product, benefit fields, and pay-period dates.` : TEXT_NOT_AVAILABLE}</p><p><strong>Missing information:</strong> {model.missingInformation.length ? model.missingInformation.join(" ") : "No additional model-level gaps identified."}</p><p><strong>Administrative owner:</strong> Lincoln Financial determines claims and benefits; Twilio Leave Operations and Payroll handle applicable internal administration.</p><p>Source record values are reported fields. Planning estimates are calculations and do not establish eligibility, approval, payment, or job protection.</p></div></details></Panel>
+      <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">{PAY_DISCLAIMER}</p>
+    </div>
+  );
+}
+
 function PayRow({ label, value, highlight }) {
   return (
     <div className="flex items-center justify-between gap-5">
@@ -1114,7 +1160,7 @@ function PayTab({ employee }) {
     return (
       <Panel className="p-6">
         <Badge tone="amber">Pay record unavailable</Badge>
-        <h2 className="mt-4 font-serif text-2xl font-bold">Pay & Top-Up Calculator</h2>
+        <h2 className="mt-4 font-serif text-2xl font-bold">Legacy pay record view</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">
           {PAY_UNAVAILABLE_MESSAGE}
         </p>
@@ -1143,7 +1189,7 @@ function PayTab({ employee }) {
           <Badge tone="green">Verified salary input</Badge>
 
           <h2 className="mt-4 font-serif text-2xl font-bold">
-            Pay & Top-Up Calculator
+            Legacy pay calculation
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -1235,7 +1281,7 @@ function PayTab({ employee }) {
               <Badge tone="cyan">
                 Days 1–7 · Elimination Period
               </Badge>
-              <strong className="text-cyan-300">100% protected</strong>
+              <strong className="text-cyan-300">Planning estimate</strong>
             </div>
 
             <p className="mt-3 text-sm text-slate-300">
@@ -1256,7 +1302,7 @@ function PayTab({ employee }) {
           <div className="rounded-2xl border border-violet-400/25 bg-violet-400/[.05] p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Badge tone="violet">Day 8+ · Coordinated Pay</Badge>
-              <strong className="text-violet-300">100% target</strong>
+              <strong className="text-violet-300">Planning target</strong>
             </div>
 
             <div className="mt-5 overflow-hidden rounded-full bg-slate-800 sm:flex">
@@ -1360,7 +1406,7 @@ function PlanTab({ employee }) {
           <div>
             <Badge tone="violet">Interactive timeline</Badge>
             <h2 className="mt-4 font-serif text-2xl font-bold">
-              Visual Leave Plan
+              Legacy leave plan view
             </h2>
             <p className="mt-2 text-sm text-slate-400">
               {employee.startDate} — {employee.endDate} ·{" "}
@@ -1963,8 +2009,7 @@ export default function App() {
 
   const content = useMemo(() => {
     if (!employee) return null;
-    if (activeTab === "pay") return <PayTab employee={employee} />;
-    if (activeTab === "plan") return <PlanTab employee={employee} />;
+    if (activeTab === "payTimeline") return <PayTimelineTab employee={employee} />;
     if (activeTab === "rtw") return <ReturnToWorkTab employee={employee} />;
     if (activeTab === "benefits") {
       return <BenefitsTab employee={employee} />;

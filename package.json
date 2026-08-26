@@ -10,6 +10,7 @@
     "test:rtw": "node scripts/validateRtw.mjs",
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",
+    "test:pay-timeline": "node scripts/validatePayTimeline.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
