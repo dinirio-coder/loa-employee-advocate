@@ -14,6 +14,9 @@ import {
   getEmployeeReturnToWorkSummary,
   RTW_NOT_AVAILABLE,
 } from "./data/rtwUtils";
+import { getEmployeePriorityActions } from "./data/actionPlanUtils";
+import { getEmployeeStatusSummary } from "./data/statusUtils";
+import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 
 const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
@@ -557,11 +560,14 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
 function SummaryCards({ employee }) {
   const pay = getEmployeePaySummary(employee);
   const duration = getEmployeeDurationSummary(employee);
+  const status = getEmployeeStatusSummary(employee);
+  const milestone = getEmployeeNextMilestone(employee);
   const cards = [
     {
-      label: "Current Report Status",
-      value: safeText(employee?.currentReportStatus, TEXT_NOT_AVAILABLE),
-      note: safeText(employee?.stageNote, TEXT_NOT_AVAILABLE),
+      label: "Current Status",
+      value: status.value,
+      note: status.rawCode ? `Source code: ${status.rawCode}` : TEXT_NOT_AVAILABLE,
+      details: status.basis,
       icon: "▣",
       color: "cyan",
     },
@@ -579,9 +585,10 @@ function SummaryCards({ employee }) {
       color: "pink",
     },
     {
-      label: "Certification / Approval Status",
-      value: safeText(employee?.certStatus, TEXT_NOT_AVAILABLE),
-      note: "Check Gmail / MyLincoln Portal",
+      label: "Next Milestone",
+      value: milestone.hasMilestone ? milestone.label : TEXT_NOT_AVAILABLE,
+      note: milestone.hasMilestone ? milestone.date : TEXT_NOT_AVAILABLE,
+      details: milestone.hasMilestone ? `${milestone.timing} · Owner: ${milestone.owner} · ${milestone.basis}` : milestone.basis,
       icon: "✎",
       color: "amber",
     },
@@ -630,7 +637,7 @@ function SummaryCards({ employee }) {
               </p>
               <p className={`mt-2 truncate text-xs ${text}`}>{card.note}</p>
               {card.context && <p className={`mt-1 truncate text-xs ${text}`}>{card.context}</p>}
-              {card.details && (
+              {card.details && card.label === "Total Planned Duration" && (
                 <details className="mt-2 text-xs text-slate-400">
                   <summary className="cursor-pointer font-semibold text-slate-300">Duration details</summary>
                   <dl className="mt-2 space-y-1">
@@ -662,6 +669,34 @@ function SummaryCards({ employee }) {
         );
       })}
     </div>
+  );
+}
+
+function PriorityActions({ employee }) {
+  const actions = getEmployeePriorityActions(employee);
+
+  return (
+    <Panel className="p-5 sm:p-6">
+      <h2 className="font-serif text-2xl font-bold">Your Three Priority Actions</h2>
+      <p className="mt-2 text-sm text-slate-400">The most important administrative steps based on your current leave record.</p>
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        {actions.map((item, index) => (
+          <article key={item.id} className="flex min-w-0 flex-col rounded-xl border border-slate-700 bg-[#10172a] p-4">
+            <div className="flex items-start gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#EF223A] text-sm font-bold text-white">{index + 1}</span>
+              <h3 className="pt-1 text-sm font-bold leading-5">{item.title}</h3>
+            </div>
+            <p className="mt-3 text-sm leading-5 text-slate-300">{item.description}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-full border border-[#38425E] px-2.5 py-1 text-[#9AA0B4]">{item.owner}</span>
+              <span className="text-[#9AA0B4]">{item.timing}</span>
+            </div>
+            <p className="mt-3 text-xs leading-5 text-[#656E87]">{item.basis}</p>
+            {item.destination && <a className="mt-auto inline-flex pt-4 text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]" href={item.destination} target="_blank" rel="noreferrer">Open authorized process <span className="ml-1" aria-hidden="true">↗</span></a>}
+          </article>
+        ))}
+      </div>
+    </Panel>
   );
 }
 
@@ -1822,6 +1857,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [employee, setEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState("todos");
+  const [showVerificationMessage, setShowVerificationMessage] = useState(true);
 
   const content = useMemo(() => {
     if (!employee) return null;
@@ -1846,7 +1882,12 @@ export default function App() {
   if (!employee) {
     return (
       <>
-        <IdentityVerificationGate onVerify={setEmployee} />
+        <IdentityVerificationGate
+          onVerify={(profile) => {
+            setEmployee(profile);
+            setShowVerificationMessage(true);
+          }}
+        />
       </>
     );
   }
@@ -1858,19 +1899,25 @@ export default function App() {
         onSignOut={() => {
           setEmployee(null);
           setActiveTab("todos");
+          setShowVerificationMessage(true);
         }}
         onLockDemo={() => {
           setEmployee(null);
           setActiveTab("todos");
+          setShowVerificationMessage(true);
           setIsAuthenticated(false);
         }}
         onOpenChat={() => setActiveTab("chat")}
       />
 
       <main className="app-content mx-auto max-w-7xl space-y-6 px-5 py-6 sm:py-8">
-        <p role="status" aria-live="polite" className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-          {SUCCESS_STATUS_MESSAGE}
-        </p>
+        {showVerificationMessage && (
+          <div role="status" aria-live="polite" className="flex items-start justify-between gap-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+            <span>{SUCCESS_STATUS_MESSAGE}</span>
+            <button type="button" aria-label="Dismiss verification confirmation" onClick={() => setShowVerificationMessage(false)} className="shrink-0 rounded-md px-2 text-lg leading-5 text-emerald-100 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60">×</button>
+          </div>
+        )}
+        <PriorityActions employee={employee} />
         <SummaryCards employee={employee} />
         <TabBar active={activeTab} setActive={setActiveTab} />
         {content}
