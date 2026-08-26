@@ -2,6 +2,7 @@ import { getEmployeePaySummary } from "./payUtils.js";
 import { getEmployeeDurationSummary } from "./durationUtils.js";
 import { getEmployeeNextMilestone } from "./milestoneUtils.js";
 import { getEmployeeReturnToWorkSummary } from "./rtwUtils.js";
+import { getStateBenefitCoordination } from "./stateBenefitUtils.js";
 
 export const STD_PRODUCTS = Object.freeze(["STD", "STDCP"]);
 export const PARENTAL_PRODUCTS = Object.freeze(["PLCOB"]);
@@ -63,6 +64,8 @@ const sourceValues = (pay, record) => ({
   payPeriodFromDate: normalizeDisplayDate(pay.payPeriodFromDate),
   payPeriodThroughDate: normalizeDisplayDate(pay.payPeriodThroughDate),
   sourceSheet: sourceLabel(record?.sourceSheet),
+  stateBenefitOffset: finiteOrNull(record?.stateBenefitOffset ?? record?.stateOffsetAmount ?? record?.stateBenefitAward),
+  stateOffsetIncluded: record?.stateOffsetIncluded === true || record?.stateOffsetSource === "source-record",
 });
 
 const selectPayRecord = (employee) => {
@@ -101,12 +104,15 @@ export const getEmployeePayTimeline = (employee, options = {}) => {
     : null;
   const rtw = getEmployeeReturnToWorkSummary(employee);
   const milestone = getEmployeeNextMilestone(employee, { asOfDate });
+  const stateBenefit = getStateBenefitCoordination({ ...payRecord, ...employee, payPeriodFromDate: pay.payPeriodFromDate, payPeriodThruDate: pay.payPeriodThroughDate });
   const planningEstimate = payScenario === "std" ? {
     dailyBusinessDayRate: pay.biweeklySalary / 10,
     eliminationPeriod: { label: "Twilio planning estimate for eligible business days", amount: pay.biweeklySalary / 10 * 5 },
     lincoln: { label: "Lincoln planning estimate at 66.67%", amount: pay.biweeklySalary * 0.6667 },
-    twilio: { label: "Twilio planning top-up estimate at 33.33%", amount: pay.biweeklySalary * 0.3333 },
+    lincolnNetAfterStateOffset: Math.max(0, pay.biweeklySalary * 0.6667 - stateBenefit.assumedStateOffset),
+    twilio: { label: "Twilio Estimated Top-Up", amount: Math.max(0, pay.biweeklySalary - stateBenefit.assumedStateOffset - Math.max(0, pay.biweeklySalary * 0.6667 - stateBenefit.assumedStateOffset) - Math.max(0, (pay.totalOffsets || 0) - (stateBenefit.sourceAmountType === "source-recorded" ? stateBenefit.assumedStateOffset : 0))) },
     combinedGross: pay.biweeklySalary,
+    basePayTarget: pay.biweeklySalary,
   } : null;
   const missingInformation = [];
   if (!hasPayData) missingInformation.push("A finite positive biweekly salary is not present in the source report.");
@@ -120,6 +126,7 @@ export const getEmployeePayTimeline = (employee, options = {}) => {
     salaryBasis: hasPayData ? "Biweekly salary from the selected source pay record" : null,
     sourcePayValues,
     planningEstimate,
+    stateBenefit,
     payPeriod: sourcePayValues?.payPeriodFromDate && sourcePayValues?.payPeriodThroughDate ? { from: sourcePayValues.payPeriodFromDate, through: sourcePayValues.payPeriodThroughDate, source: sourcePayValues.sourceSheet } : null,
     timelineEvents: buildEvents(employee, asOfDate),
     timelineRanges: duration.hasDuration && matchingRangeRecord ? [{ id: `${recordKey(matchingRangeRecord, employee.sourceRecords.indexOf(matchingRangeRecord))}-leave-window`, startDate: duration.startDate, endDate: duration.endDate, startLabel: "Leave begins", endLabel: duration.endDateLabel || "Leave ends", durationDays: duration.durationDays, durationWeeks: duration.durationWeeks, source: duration.sourceSheet, context: duration.contextLabel }] : [],

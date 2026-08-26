@@ -137,6 +137,8 @@ export const getVerifiedEmployeeProfile = (firstName, lastName, employeeId) => {
     workDaysPerWeek: toFiniteNumberOrNull(mergeField(sourceRecords, activeRecord, "workDaysPerWeek")),
     annualSalary: null,
     stateOffset: 0,
+    actualStateAward: toFiniteNumberOrNull(mergeField(sourceRecords, activeRecord, "actualStateAward") ?? mergeField(sourceRecords, activeRecord, "stateBenefitAward")),
+    stateAwardStatus: mergeField(sourceRecords, activeRecord, "stateAwardStatus"),
     payNote: "Pay values are sourced from the Twilio - ATP Report.",
   };
 };

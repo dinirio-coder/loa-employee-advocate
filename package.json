@@ -12,6 +12,8 @@
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",
     "test:pay-timeline": "node scripts/validatePayTimeline.mjs",
+    "test:state-benefits": "node scripts/validateStateBenefits.mjs",
+    "generate:state-benefits": "node scripts/rebuildStateBenefitRules.mjs",
     "test:resources": "node scripts/validateResources.mjs",
     "dev": "vite",
     "build": "vite build",
@@ -37,6 +39,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.0",
     "tailwindcss": "^4.3.3",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "xlsx": "^0.18.5"
   }
 }

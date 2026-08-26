@@ -19,6 +19,7 @@ import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
 import { getEmployeePayTimeline } from "./data/payTimelineUtils";
+import { getStateBenefitCoordination } from "./data/stateBenefitUtils";
 import {
   filterSupportResources,
   getSupportResourceCategories,
@@ -958,24 +959,7 @@ function TodosTab({ employee }) {
             </div>
           </Panel>
 
-          <Panel className="p-5">
-            <h3 className="font-serif text-lg font-bold">
-              🏛 State Statutory Leave Coordination
-            </h3>
-
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              Your location on file is <strong>{getDisplayLocation(employee)}</strong>. Any
-              state-paid benefit is generally coordinated as an offset, with
-              Twilio paying the eligible remaining difference on regular
-              payroll dates.
-            </p>
-
-            <div className="mt-4 rounded-xl bg-[#10172a] p-4 text-sm text-slate-300">
-              <span className="text-emerald-300">♢</span>{" "}
-              <strong>Goal:</strong> coordinate eligible benefits based on
-              official determinations without duplicating payments.
-            </div>
-          </Panel>
+          <StateStatutoryCard employee={employee} />
 
           <Panel className="p-5">
             <div className="flex items-center justify-between gap-3">
@@ -1105,7 +1089,7 @@ function LifecycleOverview({ employee }) {
       </Panel>
       <div className="space-y-5">
         <Panel className="p-5"><h3 className="font-serif text-lg font-bold">Administration Responsibility Matrix</h3><p className="mt-1 text-xs text-slate-400">Who owns each part of your leave experience.</p><div className="mt-4 grid gap-4 md:grid-cols-3"><Responsibility title="Lincoln Financial" tone="cyan" items={["Claim intake and certification review", "Case manager communications", "Authorized documentation process"]} contact="800-377-1568 · MyLincoln Portal" /><Responsibility title="Twilio Leave Operations / Payroll" tone="pink" items={["Salary top-up on payroll", "Workday leave-status updates", "RTW and accommodation coordination"]} contact="leave-ops@twilio.com" /><Responsibility title="Employee / Manager" tone="cyan" items={["Business handoff and priorities", "Calendar and delegation planning", "Return-to-work reintegration"]} contact="Coordinate through your manager and Twilio Leave Operations" /></div></Panel>
-        <Panel className="p-5"><h3 className="font-serif text-lg font-bold">State Statutory Leave Coordination</h3><p className="mt-3 text-sm leading-6 text-slate-300">Your location on file is <strong>{getDisplayLocation(employee)}</strong>. Any state-paid benefit is generally coordinated as an offset, with Twilio paying the eligible remaining difference on regular payroll dates.</p><div className="mt-4 rounded-xl bg-[#10172a] p-4 text-sm text-slate-300"><span className="text-emerald-300">♢</span> <strong>Goal:</strong> coordinate eligible benefits toward 100% of base pay without duplicating payments.</div></Panel>
+        <StateStatutoryCard employee={employee} />
         <Panel className="p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-serif text-lg font-bold">Profile Snapshot</h3><Badge tone="green">Verified</Badge></div><dl className="mt-4 divide-y divide-slate-700/70 text-sm">{[["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],["Plan dates", `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`],["Annual base salary", "Pay information is not available in this source report."]].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-6 py-3"><dt className="text-slate-400">{label}</dt><dd className="text-right font-semibold text-slate-100">{value}</dd></div>)}</dl></Panel>
       </div>
     </div>
@@ -1121,13 +1105,14 @@ function PayTimelineTab({ employee }) {
   const model = getEmployeePayTimeline(employee, { asOfDate: "2026-08-26" });
   const source = model.sourcePayValues;
   const planning = model.planningEstimate;
+  const stateBenefit = model.stateBenefit;
   const status = model.hasPayData ? model.missingInformation.length ? "Partial source data" : "Source data available" : "Information unavailable";
   const statusTone = model.hasPayData ? model.missingInformation.length ? "amber" : "green" : "amber";
   const summaryCards = [
-    ["Biweekly Base Salary", source?.biweeklySalary, "Source record", "Reported biweekly salary; this is not a benefit payment."],
-    ["Daily Business-Day Rate", planning?.dailyBusinessDayRate, planning ? "Planning estimate" : null, "For STD planning only: biweekly salary divided by 10 business days."],
-    ["Lincoln Record or Planning Component", planning?.lincoln?.amount ?? source?.benefitGrossAmount, planning ? "Planning estimate" : source?.benefitGrossAmount == null ? null : "Source record", "A source benefit gross amount is not the same as salary. The STD planning component is illustrative."],
-    ["Twilio Planning Component", planning?.twilio?.amount, planning ? "Planning estimate" : null, "Shown only for the recognized STD planning scenario; it is not an issued payment."],
+    ["Biweekly Base-Pay Target", planning?.basePayTarget, "Source salary target", "The maximum coordinated gross target for this pay period."],
+    ["Assumed State Benefit Offset", stateBenefit.assumedStateOffset, stateBenefit.sourceAmountType === "source-recorded" ? "Source-recorded" : "Planning assumption—not state approval", "Maximum used pending state award."],
+    ["Lincoln Estimate After State Offset", planning?.lincolnNetAfterStateOffset, "Planning estimate", "Gross Lincoln estimate less the applicable state offset."],
+    ["Twilio Estimated Top-Up", planning?.twilio?.amount, "Planning estimate", "Remaining amount toward the base-pay target after confirmed offsets."],
   ];
 
   return (
@@ -1146,7 +1131,9 @@ function PayTimelineTab({ employee }) {
         </div>
       </section>
 
-      {planning && <Panel className="p-6" aria-labelledby="composition-heading"><h3 id="composition-heading" className="font-serif text-2xl font-bold">Pay composition</h3><p className="mt-1 text-sm text-slate-400">STD planning estimate for a full biweekly base amount; this is not an issued payment.</p><div className="mt-5 flex h-12 overflow-hidden rounded-lg border border-[#38425E]" role="img" aria-label={`Planning estimate composition: Lincoln ${money(planning.lincoln.amount)}, Twilio ${money(planning.twilio.amount)}`}><div className="flex w-2/3 items-center justify-center bg-[#1B66EE] px-2 text-center text-xs font-bold">Lincoln · 66.67%</div><div className="flex w-1/3 items-center justify-center bg-[#EF223A] px-2 text-center text-xs font-bold">Twilio · 33.33%</div></div><div className="mt-4 grid gap-2 text-sm sm:grid-cols-2"><div><strong className="text-[#72A5FF]">Lincoln planning estimate:</strong> {money(planning.lincoln.amount)}</div><div><strong className="text-[#FF8792]">Twilio planning estimate:</strong> {money(planning.twilio.amount)}</div></div><p className="mt-3 text-xs text-slate-400">Combined gross planning target: {money(planning.combinedGross)}. Percentages may vary by rounding.</p></Panel>}
+      {planning && <Panel className="p-6" aria-labelledby="composition-heading"><h3 id="composition-heading" className="font-serif text-2xl font-bold">Pay composition</h3><p className="mt-1 text-sm text-slate-400">Planning estimate coordinated to the biweekly base-pay target.</p><div className="mt-5 flex h-12 overflow-hidden rounded-lg border border-[#38425E]" role="img" aria-label={`Pay composition: State assumed maximum ${money(stateBenefit.assumedStateOffset)}, Lincoln after state offset ${money(planning.lincolnNetAfterStateOffset)}, Twilio top-up ${money(planning.twilio.amount)}`}><div className="flex items-center justify-center bg-[#F59E0B] px-2 text-center text-xs font-bold" style={{ width: `${(stateBenefit.assumedStateOffset / planning.basePayTarget) * 100}%` }}>State assumed maximum</div><div className="flex items-center justify-center bg-[#1B66EE] px-2 text-center text-xs font-bold" style={{ width: `${(planning.lincolnNetAfterStateOffset / planning.basePayTarget) * 100}%` }}>Lincoln after state offset</div><div className="flex items-center justify-center bg-[#EF223A] px-2 text-center text-xs font-bold" style={{ width: `${(planning.twilio.amount / planning.basePayTarget) * 100}%` }}>Twilio top-up</div></div><div className="mt-4 grid gap-2 text-sm sm:grid-cols-3"><div><strong className="text-amber-300">State assumed maximum:</strong> {money(stateBenefit.assumedStateOffset)}</div><div><strong className="text-[#72A5FF]">Lincoln after state offset:</strong> {money(planning.lincolnNetAfterStateOffset)}</div><div><strong className="text-[#FF8792]">Twilio top-up:</strong> {money(planning.twilio.amount)}</div></div><p className="mt-3 text-xs text-slate-400">Components are coordinated toward {money(planning.basePayTarget)}; state amounts are planning assumptions until an award is recorded.</p></Panel>}
+
+      {planning && <Panel className="p-6" aria-labelledby="reconciliation-heading"><h3 id="reconciliation-heading" className="font-serif text-2xl font-bold">Pending State Award Reconciliation</h3><dl className="mt-4 space-y-3 text-sm"><PayRow label="Award status" value={stateBenefit.awardStatus} /><PayRow label="Assumed State Benefit Offset" value={money(stateBenefit.assumedStateOffset)} /><PayRow label="Actual state award" value={stateBenefit.actualStateAward == null ? TEXT_NOT_AVAILABLE : money(stateBenefit.actualStateAward)} /><PayRow label="Estimated Lincoln reconciliation" value={money(stateBenefit.lincolnReconciliation)} highlight /></dl><div className="mt-5 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100"><strong>Award-letter submission instructions:</strong> Submit the state award letter through the authorized Lincoln process and notify Twilio Leave Operations / Payroll. A pending, denied, or missing claim does not create a reconciliation. <strong>Responsible party:</strong> Employee submits the letter; Lincoln Financial records the award and determines the reconciliation; Twilio Leave Operations / Payroll coordinates payroll.</div></Panel>}
 
       <Panel className="p-6" aria-labelledby="dates-heading"><div className="flex items-end justify-between gap-3"><div><h3 id="dates-heading" className="font-serif text-2xl font-bold">Important dates</h3><p className="mt-1 text-sm text-slate-400">Dates retain their source labels and ownership.</p></div>{model.nextMilestone?.hasMilestone && <span className="text-xs text-[#72A5FF]">Next: {model.nextMilestone.label}</span>}</div>{model.timelineEvents.length ? <ol className="mt-5 space-y-4 border-l border-[#38425E] pl-5">{model.timelineEvents.map((event) => <li key={event.id} className="relative"><span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${event.status === "past" ? "bg-[#656E87]" : event.status === "current" ? "bg-[#EF223A]" : "bg-[#1B66EE]"}`} /><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><strong>{event.label}</strong><time dateTime={event.date} className="text-sm font-semibold text-[#72A5FF]">{displayDate(event.date)}</time></div><div className="mt-1 text-xs text-slate-400">{event.owner}{event.source ? ` · ${event.source}` : ""}{event.conflict ? " · Source dates conflict" : ""}</div></li>)}</ol> : <p className="mt-5 rounded-lg border border-[#38425E] p-4 text-sm text-slate-400">No reliable source-backed timeline events are available.</p>}</Panel>
 
@@ -1380,6 +1367,28 @@ function TimelineCard({ tone, title, text }) {
     <Panel className="p-5">
       <Badge tone={tone}>{title}</Badge>
       <p className="mt-4 text-sm leading-6 text-slate-300">{text}</p>
+    </Panel>
+  );
+}
+
+function StateStatutoryCard({ employee }) {
+  const stateBenefit = getStateBenefitCoordination(employee);
+  const program = stateBenefit.program;
+  return (
+    <Panel className="p-5">
+      <h3 className="font-serif text-lg font-bold">State Statutory Leave Coordination</h3>
+      <p className="mt-3 text-sm leading-6 text-slate-300">Your normalized state is <strong>{safeText(stateBenefit.state, TEXT_NOT_AVAILABLE)}</strong>. Eligibility and award amounts are informational; the state agency makes the official eligibility and award determination.</p>
+      <dl className="mt-4 space-y-3 text-sm">
+        <PayRow label="Potential state program" value={program?.name || "No applicable state program identified"} />
+        <PayRow label="Program status" value={program?.programStatus || TEXT_NOT_AVAILABLE} />
+        <PayRow label="Maximum weekly benefit and year" value={program ? `${money(program.maximumWeeklyBenefit)} · ${program.maximumYear}` : TEXT_NOT_AVAILABLE} />
+        <PayRow label="Available family / medical duration" value={program ? `${program.familyLeaveWeeks ?? TEXT_NOT_AVAILABLE} / ${program.medicalLeaveWeeks ?? TEXT_NOT_AVAILABLE} weeks` : TEXT_NOT_AVAILABLE} />
+        <PayRow label="Eligibility guidance" value={program?.eligibilityDescription || "Verify with the state agency; no eligibility determination is inferred."} />
+        <PayRow label="Application owner" value={program?.applicationOwner || TEXT_NOT_AVAILABLE} />
+        <PayRow label="Lincoln coordination" value={program?.lincolnCoordination || TEXT_NOT_AVAILABLE} />
+        <PayRow label="Award letter recipient" value={program?.awardLetterRecipient || TEXT_NOT_AVAILABLE} />
+      </dl>
+      {program ? <><a className="mt-4 inline-block text-sm font-semibold text-[#72A5FF] underline" href={program.officialProgramUrl} target="_blank" rel="noreferrer">Visit Official Program Website <span aria-hidden="true">↗</span></a><p className="mt-3 text-xs leading-5 text-slate-400">Planning guidance only. A future or non-covered program does not create a state offset before benefits begin. After approval, submit the award letter through the authorized process and notify Twilio Leave Operations / Payroll.</p></> : <p className="mt-4 text-xs leading-5 text-slate-400">Planning guidance only. Verify whether a state award applies before submitting documentation.</p>}
     </Panel>
   );
 }
