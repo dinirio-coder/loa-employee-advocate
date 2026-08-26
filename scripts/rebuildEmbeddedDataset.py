@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKBOOK = ROOT / "Lincoln Reports - Current.xlsx"
 EMBEDDED = ROOT / "src/data/embeddedEmployeeRecords.js"
+DICTIONARY = ROOT / "src/data/lincolnCodeDictionary.js"
 NAMESPACE = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
 
@@ -31,6 +32,59 @@ def column_number(reference):
     for letter in letters:
         number = number * 26 + ord(letter) - ord("A") + 1
     return number - 1
+
+
+def read_sheet_rows(workbook, sheet_number):
+    shared_strings = read_shared_strings(workbook)
+    root = ET.fromstring(workbook.read(f"xl/worksheets/sheet{sheet_number}.xml"))
+    return [
+        {
+            column_number(cell.attrib["r"]): cell_value(cell, shared_strings).strip()
+            for cell in row.findall("m:c", NAMESPACE)
+        }
+        for row in root.findall(".//m:sheetData/m:row", NAMESPACE)
+    ]
+
+
+def read_reference_section(rows, title, headers):
+    for index, row in enumerate(rows):
+        if title not in row.values():
+            continue
+        header_index = next(
+            (
+                candidate
+                for candidate in range(index + 1, len(rows))
+                if [value for value in rows[candidate].values() if value] == list(headers)
+            ),
+            None,
+        )
+        if header_index is None:
+            raise RuntimeError(f"Could not find headers for {title}")
+        entries = []
+        for entry in rows[header_index + 1:]:
+            values = [value for value in entry.values() if value]
+            if not any(values):
+                break
+            if all(values):
+                entries.append(dict(zip(headers, values)))
+        return entries
+    raise RuntimeError(f"Could not find section {title}")
+
+
+def read_code_dictionary(workbook):
+    rows = read_sheet_rows(workbook, 8)
+    primary = read_reference_section(rows, "Status Codes", ("Status Code", "Status Description"))
+    salary = read_reference_section(rows, "Employee Salary Type Codes", ("Salary Code", "Salary Description"))
+    disability = read_reference_section(rows, "Disability Status Codes", ("Status", "Code", "Decode Description"))
+    leave_status = read_reference_section(rows, "Leave Status Codes", ("Status", "Code", "Decode Description"))
+    leave_reason = read_reference_section(rows, "Leave Reason Codes", ("Code", "Decode Description"))
+    return {
+        "primaryStatusCodes": [{"code": e["Status Code"], "description": e["Status Description"]} for e in primary],
+        "disabilityStatusReasonCodes": [{"statusCode": e["Status"], "code": e["Code"], "description": e["Decode Description"]} for e in disability],
+        "leaveStatusReasonCodes": [{"statusCode": e["Status"], "code": e["Code"], "description": e["Decode Description"]} for e in leave_status],
+        "leaveReasonCodes": [{"code": e["Code"], "description": e["Decode Description"]} for e in leave_reason],
+        "salaryTypeCodes": [{"code": e["Salary Code"], "description": e["Salary Description"]} for e in salary],
+    }
 
 
 def normalize_date(value):
@@ -135,6 +189,7 @@ def read_export(name):
 
 with zipfile.ZipFile(WORKBOOK) as workbook:
     atp_records = read_atp_rows(workbook)
+    code_dictionary = read_code_dictionary(workbook)
 
 records = read_export("EMBEDDED_EMPLOYEE_RECORDS")
 records = [record for record in records if record.get("sourceSheet") != "Twilio - ATP Report"]
@@ -169,4 +224,10 @@ output = "\n\n".join([
     f"export const EMBEDDED_EMPLOYEE_RECORDS = {json.dumps(records, separators=(',', ':'))};",
 ]) + "\n"
 EMBEDDED.write_text(output)
+DICTIONARY.write_text(
+    "export const LINCOLN_CODE_DICTIONARY = "
+    + json.dumps(code_dictionary, separators=(",", ":"))
+    + ";\n"
+)
 print(f"ATP rows: {len(atp_records)}; total embedded rows: {len(records)}; unique IDs: {len(identity_index)}; name-only rows: {len(name_only)}")
+print(f"Dictionary counts: {json.dumps({key: len(value) for key, value in code_dictionary.items()}, separators=(',', ':'))}")

@@ -19,6 +19,10 @@ import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
 import { getEmployeePayTimeline } from "./data/payTimelineUtils";
+import {
+  filterSupportResources,
+  getSupportResourceCategories,
+} from "./data/resourceUtils";
 
 const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
@@ -56,7 +60,7 @@ const TABS = [
   ["todos", "✓", "Lifecycle To-Dos"],
   ["payTimeline", "$", "Pay & Leave Timeline"],
   ["rtw", "↻", "Return to Work"],
-  ["benefits", "♥", "Specialized Benefits"],
+  ["resources", "◇", "Support Resources"],
   ["chat", "✦", "Ask Advocate"],
 ];
 
@@ -567,8 +571,9 @@ function SummaryCards({ employee }) {
     {
       label: "Current Status",
       value: status.value,
-      note: status.rawCode ? `Source code: ${status.rawCode}` : TEXT_NOT_AVAILABLE,
+      note: status.reasonDescription || TEXT_NOT_AVAILABLE,
       details: status.basis,
+      statusDetails: status,
       icon: "▣",
       color: "cyan",
     },
@@ -638,6 +643,23 @@ function SummaryCards({ employee }) {
               </p>
               <p className={`mt-2 truncate text-xs ${text}`}>{card.note}</p>
               {card.context && <p className={`mt-1 truncate text-xs ${text}`}>{card.context}</p>}
+              {card.statusDetails && (
+                <details className="mt-2 text-xs text-slate-400">
+                  <summary className="cursor-pointer font-semibold text-slate-300">Source details</summary>
+                  <dl className="mt-2 space-y-1">
+                    {[
+                      ["Raw status code", card.statusDetails.rawCode],
+                      ["Official status", card.statusDetails.officialDescription],
+                      ["Reason code", card.statusDetails.reasonCode],
+                    ].filter(([, value]) => value).map(([label, value]) => (
+                      <div key={label} className="flex justify-between gap-3">
+                        <dt>{label}</dt>
+                        <dd className="text-right text-slate-300">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
+              )}
               {card.details && card.label === "Total Planned Duration" && (
                 <details className="mt-2 text-xs text-slate-400">
                   <summary className="cursor-pointer font-semibold text-slate-300">Duration details</summary>
@@ -1783,80 +1805,37 @@ ${employee.firstName} ${employee.lastName}`;
   );
 }
 
-function BenefitsTab({ employee }) {
-  const benefits = [
-    {
-      name: "Lyra",
-      icon: "◌",
-      tone: "cyan",
-      description: "Confidential mental health coaching and therapy support for you and eligible dependents.",
-      action: "Explore mental health support",
-      best: "Stress, anxiety, caregiving, transitions",
-    },
-    {
-      name: "Hinge Health",
-      icon: "⌁",
-      tone: "green",
-      description: "Digital musculoskeletal care and guided exercise support for back, joint, and mobility needs.",
-      action: "Explore MSK support",
-      best: "Back, neck, joint, and mobility support",
-    },
-    {
-      name: "Transform Oncology",
-      icon: "✦",
-      tone: "pink",
-      description: "Navigation support for employees and families facing a cancer diagnosis or treatment journey.",
-      action: "Explore oncology navigation",
-      best: "Care navigation and second-opinion support",
-    },
-    {
-      name: "Cleo",
-      icon: "♥",
-      tone: "violet",
-      description: "Family support for pregnancy, parenting, caregiving, and major family transitions.",
-      action: "Explore family support",
-      best: "Parenthood and caregiving",
-    },
-  ];
+function SupportResourcesTab({ onOpenReturnToWork }) {
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [openResources, setOpenResources] = useState(() => new Set());
+  const categories = getSupportResourceCategories();
+  const resources = filterSupportResources(selectedCategory);
 
-  const leaveReasonText = safeText(employee?.leaveReason);
-  const safeLeaveReason = leaveReasonText || "leave plan";
+  const toggleResource = (id) => setOpenResources((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   return (
     <div className="space-y-5">
-      <Panel className="p-6">
-        <Badge tone="pink">Personalized routing</Badge>
-        <h2 className="mt-4 font-serif text-2xl font-bold">
-          Specialized Benefits
-        </h2>
-        <p className="mt-2 text-sm text-slate-400">
-          Optional resources that may complement your {safeLeaveReason} plan. Eligibility and availability vary by benefit enrollment and location.
-        </p>
+      <Panel className="p-6 sm:p-7">
+        <Badge tone="pink">Optional Support</Badge>
+        <h2 className="mt-4 font-serif text-3xl font-bold">Support Resources</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Explore optional resources that may help during leave, caregiving, and return to work. Choose a category based on what you want to explore.</p>
+        <p className="mt-3 text-xs text-slate-400">Your selections are not saved and do not update your leave record.</p>
       </Panel>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        {benefits.map((benefit) => (
-          <Panel key={benefit.name} className="group p-6 transition hover:-translate-y-1 hover:border-slate-500">
-            <div className="flex items-start justify-between">
-              <div className={`grid h-12 w-12 place-items-center rounded-2xl text-xl ${benefit.tone === "cyan" ? "bg-cyan-400/10 text-cyan-300" : benefit.tone === "green" ? "bg-emerald-400/10 text-emerald-300" : benefit.tone === "pink" ? "bg-rose-400/10 text-rose-300" : "bg-violet-400/10 text-violet-300"}`}>
-                {benefit.icon}
-              </div>
-              <Badge tone={benefit.tone}>Available resource</Badge>
-            </div>
-
-            <h3 className="mt-5 font-serif text-xl font-bold">{benefit.name}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-400">{benefit.description}</p>
-
-            <div className="mt-4 rounded-xl bg-slate-900/45 p-3 text-xs text-slate-300">
-              <strong className="text-white">Best for:</strong> {benefit.best}
-            </div>
-
-            <button className="mt-5 text-sm font-bold text-cyan-300 hover:text-cyan-200">
-              {benefit.action} →
-            </button>
-          </Panel>
-        ))}
+      <div className="-mx-1 overflow-x-auto px-1 pb-1" aria-label="Resource categories">
+        <div className="flex min-w-max gap-2">
+          {categories.map((category) => <button key={category.id} type="button" aria-pressed={selectedCategory === category.id} onClick={() => setSelectedCategory(category.id)} className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-[#72A5FF] ${selectedCategory === category.id ? "border-[#1B66EE] bg-[#1B66EE] text-white" : "border-[#38425E] bg-[#0F1830] text-[#9AA0B4] hover:border-[#1B66EE] hover:text-white"}`}>{category.label}</button>)}
+        </div>
       </div>
+
+      {resources.length === 0 ? <Panel className="p-6"><p className="text-sm text-slate-300">No resources are listed in this category in the current demo catalog.</p><button type="button" onClick={() => setSelectedCategory("all")} className="app-button app-button--secondary mt-4">View all resources</button></Panel> : <div className="grid gap-5 md:grid-cols-2">{resources.map((resource) => { const detailsId = `resource-details-${resource.id}`; const open = openResources.has(resource.id); return <Panel key={resource.id} className="flex h-full flex-col p-6"><div className="flex items-start justify-between gap-3"><Badge tone="cyan">Optional resource</Badge><span className="text-xs text-slate-400">{categories.find((category) => category.id === resource.category)?.label}</span></div><h3 className="mt-5 font-serif text-2xl font-bold">{resource.name}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{resource.summary}</p><div className="mt-4 rounded-lg border border-[#38425E] bg-[#10172a] p-3 text-sm text-slate-300"><strong className="text-white">May help with:</strong> {resource.bestFor}</div><dl className="mt-4 space-y-2 text-xs text-slate-400"><div className="flex justify-between gap-4"><dt>Owner</dt><dd className="text-right">{resource.owner}</dd></div><div className="flex justify-between gap-4"><dt>Access</dt><dd className="text-right">{resource.availabilityNote}</dd></div></dl><div className="mt-auto pt-5"><button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => toggleResource(resource.id)} className="min-h-11 text-sm font-bold text-[#72A5FF] underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#72A5FF]">{open ? "Hide access details" : "How to access"}</button>{open && <div id={detailsId} className="mt-3 border-t border-[#38425E] pt-3 text-xs leading-5 text-slate-400">{resource.destination ? <a href={resource.destination} target="_blank" rel="noreferrer" className="font-bold text-[#72A5FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#72A5FF]">{resource.accessLabel} <span aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span></a> : <p>Confirm access instructions in current Twilio benefit materials.</p>}</div>}</div></Panel>; })}</div>}
+
+      <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Need help preparing to return?</h3><p className="mt-2 text-sm leading-6 text-slate-300">Use the Return to Work tab for RTW dates, access restoration, manager reintegration, phased-return planning, and workplace-support exploration.</p><button type="button" onClick={onOpenReturnToWork} className="app-button app-button--primary mt-4">Open Return to Work</button></Panel>
+      <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">Resources are presented for informational exploration. Availability, eligibility, services, and coverage may vary by location, health plan, employment status, and current vendor terms. Confirm current access details in Twilio benefit materials or with the applicable program administrator.</p>
     </div>
   );
 }
@@ -2011,8 +1990,8 @@ export default function App() {
     if (!employee) return null;
     if (activeTab === "payTimeline") return <PayTimelineTab employee={employee} />;
     if (activeTab === "rtw") return <ReturnToWorkTab employee={employee} />;
-    if (activeTab === "benefits") {
-      return <BenefitsTab employee={employee} />;
+    if (activeTab === "resources") {
+      return <SupportResourcesTab key={employee.employeeId} onOpenReturnToWork={() => setActiveTab("rtw")} />;
     }
     if (activeTab === "chat") return <ChatTab employee={employee} />;
     return <LifecycleOverview employee={employee} />;

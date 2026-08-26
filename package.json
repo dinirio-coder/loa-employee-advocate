@@ -6,11 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:identity": "node scripts/validateEmbeddedIdentity.mjs",
+    "test:status": "node scripts/validateStatus.mjs",
     "test:profiles": "node scripts/validateEmbeddedProfiles.mjs",
     "test:rtw": "node scripts/validateRtw.mjs",
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",
     "test:pay-timeline": "node scripts/validatePayTimeline.mjs",
+    "test:resources": "node scripts/validateResources.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"

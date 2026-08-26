@@ -34,7 +34,7 @@ const documentationPending = assertActions({
 assert.equal(documentationPending[0].id, "documentation-check-portal");
 
 assert.equal(getEmployeeStatusSummary({ currentReportStatus: "CL" }).value, "Closed");
-assert.equal(getEmployeeStatusSummary({ currentReportStatus: "XY" }).value, "Status code: XY");
+assert.equal(getEmployeeStatusSummary({ currentReportStatus: "XY" }).value, "Unknown status");
 assert.equal(getEmployeeStatusSummary({}).value, "Not available in source report");
 assert.equal(getEmployeeNextMilestone({ sourceRecords: [] }, { asOfDate: "2026-08-26" }).hasMilestone, false);
 assert.equal(getEmployeeNextMilestone({ sourceRecords: [{ leaveEndDate: "2026-09-01" }, { estimatedRTW: "2026-09-10" }] }, { asOfDate: "2026-08-26" }).label, "Leave ends");
