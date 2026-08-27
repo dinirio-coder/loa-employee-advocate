@@ -682,7 +682,7 @@ function PriorityActions({ employee }) {
 
   return (
     <Panel className="p-5 sm:p-6">
-      <h2 className="font-serif text-2xl font-bold">Your Three Priority Actions</h2>
+      <h2 className="font-serif text-2xl font-bold">Your Top Priority Actions</h2>
             <p className="mt-2 text-sm text-slate-400">The most important steps based on your current leave information.</p>
       <div className="mt-5 grid gap-3 lg:grid-cols-3">
         {actions.map((item, index) => (
