@@ -28,6 +28,16 @@ assert.equal(parental.components.length, 1);
 assert.equal(parental.components[0].label, "Paid parental leave estimate");
 assert.equal(parental.formula, null);
 assert.match(parental.components[0].explanation, /100% of eligible base pay/);
+assert.equal(parental.waitingPeriodGuidance, null);
+assert.doesNotMatch(JSON.stringify(parental), /Short-Term Disability waiting period|66\.67%|33\.33%/);
+assert.equal(parental.missingInformation.some((message) => /Some pay information is unavailable/.test(message)), false);
+const caBonding = getEmployeePayExperience({ state: "CA", leaveCategory: "BONDING", sourceRecords: [{ biweeklySalaryAmount: "10275.24", product: "PLCOB", payPeriodFromDate: "2026-08-01", payPeriodThruDate: "2026-08-14", leaveBeginDate: "2026-08-01", leaveEndDate: "2026-08-31", leaveCategory: "BONDING" }] }, options);
+assert.equal(caBonding.stateProgram.name, "Paid Family Leave (PFL)");
+assert.equal(caBonding.stateProgram.weeklyMaximum, 1765);
+assert.equal(caBonding.stateProgram.calculatedMaximum, 3530);
+assert.equal(caBonding.components.find((item) => item.label === "State benefit estimate").amount, 3530);
+assert.equal(caBonding.components.find((item) => item.label === "Paid parental leave estimate").amount, 6745.24);
+assert.equal(caBonding.components.reduce((sum, item) => sum + item.amount, 0), caBonding.coordinatedPayTarget);
 
 const missing = getEmployeePayExperience({ sourceRecords: [] }, options);
 assert.equal(missing.hasPayData, false);
@@ -47,6 +57,6 @@ const rhodeIslandBeforeJuly = getEmployeePayExperience({ state: "RI", leaveCateg
 assert.equal(rhodeIslandBeforeJuly.stateProgram.weeklyMaximum, 1103);
 assert.equal(rhodeIslandBeforeJuly.stateProgram.calculatedMaximum, 2206);
 const bonding = getEmployeePayExperience({ state: "NY", leaveCategory: "BONDING", sourceRecords: [{ biweeklySalaryAmount: "10275.24", product: "STD", payPeriodFromDate: "2026-08-01", payPeriodThruDate: "2026-08-14", leaveBeginDate: "2026-08-01", leaveEndDate: "2026-08-14", leaveCategory: "BONDING" }] }, options);
-assert.equal(bonding.stateProgram, null);
+assert.equal(bonding.stateProgram.name, "NY Paid Family Leave (PFL)");
 assert.doesNotMatch(JSON.stringify(nyStd), /dailyBusinessDayRate|sourceSheet|payCode|ATP|record classification|owner|dependency/i);
 console.log("Employee pay experience validation passed.");

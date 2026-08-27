@@ -1,5 +1,6 @@
 import { getLifecycleStageDecision } from "./lifecycleStageEngine.js";
 import { getEmployeeLifecycleAlerts } from "./lifecycleAlertUtils.js";
+import { getStateCoordinationExperience } from "./stateCoordinationExperience.js";
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
 
@@ -59,8 +60,10 @@ const fallbackActions = (basis) => [
 export const getEmployeePriorityActions = (employee, options = {}) => {
   const decision = getLifecycleStageDecision(employee, options);
   const alerts = getEmployeeLifecycleAlerts(employee, options);
+  const stateExperience = getStateCoordinationExperience(employee, options);
   const alertActions = alerts.map((alert) => action(`alert-${alert.id}`, alert.title, alert.description, "Act now", "Employee", alert.destination, "Important follow-up for your leave.", alert.severity === "high" ? "High" : "Normal"));
+  const stateAction = stateExperience.applicationAction ? [action("state-application", "Apply for your state benefit", "Complete the separate state application so the state agency can review your benefit request.", "As soon as possible", "Employee", stateExperience.applicationAction.url, "A state application may be needed.", "High")] : [];
   const normalActions = actionsByStage[decision.stageId]?.(decision.reason) || fallbackActions(decision.reason);
-  const alertTitles = new Set(alerts.map((alert) => alert.title));
-  return [...alertActions, ...normalActions.filter((item) => !alertTitles.has(item.title))];
+  const existingTitles = new Set([...alerts.map((alert) => alert.title), ...normalActions.map((item) => item.title)]);
+  return [...alertActions, ...stateAction.filter((item) => !existingTitles.has(item.title)), ...normalActions.filter((item) => !alerts.some((alert) => alert.title === item.title))];
 };

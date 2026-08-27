@@ -379,6 +379,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Lincoln Financial",
+    "applicationUrl": "https://edd.ca.gov/en/disability/SDI_Online/",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Lincoln Financial",
     "eligibilityDescription": "Earned at least $300 in wages subject to SDI tax during 12-month base period.",
@@ -402,6 +403,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Lincoln Financial",
+    "applicationUrl": "https://labor.hawaii.gov/dcd/forms/",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Lincoln Financial",
     "eligibilityDescription": "Employed at least 14 weeks in Hawaii during which paid for 20+ hours and earned $400+.",
@@ -425,6 +427,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Lincoln Financial",
+    "applicationUrl": "https://www.nj.gov/labor/myleavebenefits/worker/tdi/",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Lincoln Financial",
     "eligibilityDescription": "Worked 20 calendar weeks earning $310+/week or earned $15,500 total in NJ base year.",
@@ -448,6 +451,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Lincoln Financial",
+    "applicationUrl": "https://www.wcb.ny.gov/content/main/forms/db450.pdf",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Lincoln Financial",
     "eligibilityDescription": "Employed for 4 consecutive weeks with a covered NY employer.",
@@ -471,6 +475,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Employee",
+    "applicationUrl": "https://dltweb.dlt.ri.gov/TDIReserve/Home",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Employee",
     "eligibilityDescription": "Earned at least $16,800 in RI base period (or $2,800 in 1 quarter with specific base year rules).",
@@ -494,6 +499,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Employee",
+    "applicationUrl": "https://dltweb.dlt.ri.gov/TDIReserve/Home",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Employee",
     "eligibilityDescription": "Earned at least $16,800 in RI base period (or $2,800 in 1 quarter with specific base year rules).",
@@ -517,6 +523,7 @@ export const STATE_BENEFIT_RULES = Object.freeze([
       "OWN_MEDICAL"
     ],
     "applicationOwner": "Employee",
+    "applicationUrl": "https://www.trabajo.pr.gov/",
     "lincolnCoordination": "Lincoln offsets STD",
     "awardLetterRecipient": "Employee",
     "eligibilityDescription": "Earned at least $150 in covered wages during base period.",

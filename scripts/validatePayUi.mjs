@@ -17,6 +17,12 @@ assert.doesNotMatch(layout, /dailyBusinessDayRate|daily business-day rate|source
 assert.doesNotMatch(layout, />[^<{]*\bSTD\b[^<{]*</i);
 assert.match(pay, /experience\.stateAdjustment/);
 assert.match(pay, /experience\.components/);
+assert.match(pay, /ParentalCoordinationCard/);
+assert.match(pay, /experience\.scenario === "parental"/);
+assert.match(pay, /Paid parental leave/);
+assert.match(pay, /ParentalCoordinationCard experience=\{experience\}/);
+assert.doesNotMatch(pay, /money\(amount\)/);
+assert.match(pay, /paid parental leave coordination/i);
 assert.match(pay, /experience\.payPeriod/);
 assert.match(pay, /StateProgramCapDetails/);
 assert.match(pay, /stateProgram\.calculatedMaximum/);

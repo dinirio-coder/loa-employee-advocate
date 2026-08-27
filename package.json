@@ -19,6 +19,8 @@
     "test:return-to-work-ui": "node scripts/validateReturnToWorkUi.mjs",
     "test:pay-experience": "node scripts/validatePayExperience.mjs",
     "test:pay-ui": "node scripts/validatePayUi.mjs",
+    "test:state-coordination-ui": "node scripts/validateStateCoordinationUi.mjs",
+    "test:state-actions": "node scripts/validateStateActions.mjs",
     "test:rtw": "node scripts/validateRtw.mjs",
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",

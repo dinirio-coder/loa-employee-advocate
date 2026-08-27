@@ -18,7 +18,7 @@ const FAMILY_REQUIRED_COLUMNS = [
 const DISABILITY_REQUIRED_COLUMNS = [
   "State Code", "State Name", "Program Name", "Program Status",
   "Maximum Weekly Benefit (2026)", "Max Duration Weeks", "Eligibility Requirements",
-  "Official Program URL", "Last Verified Date", "Program Type", "Benefits Start Date",
+  "Official Program URL", "Apply URL", "Last Verified Date", "Program Type", "Benefits Start Date",
   "Covered Leave Categories", "Application Owner", "Lincoln Coordination", "Award Letter Recipient",
 ];
 const STATE_CODES = new Set("AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA PR RI SC SD TN TX UT VT VA WA WV WI WY".split(" "));
@@ -89,7 +89,8 @@ const disabilityRules = disabilityRows.map((row, index) => {
   const rowNumber = index + 2;
   const common = validateCommon(row, rowNumber);
   const maximumYear = 2026;
-  return { ...common, programType: text(row["Program Type"], "Program Type", rowNumber).toUpperCase(), benefitsStartDate: isoDate(row["Benefits Start Date"], "Benefits Start Date", rowNumber), benefitsEndDate: null, maximumYear, maximumWeeklyBenefit: nonNegativeNumber(row["Maximum Weekly Benefit (2026)"], "Maximum Weekly Benefit (2026)", rowNumber), familyLeaveWeeks: null, medicalLeaveWeeks: nonNegativeNumber(row["Max Duration Weeks"], "Max Duration Weeks", rowNumber), coveredLeaveCategories: categories(row, rowNumber), applicationOwner: text(row["Application Owner"], "Application Owner", rowNumber), lincolnCoordination: text(row["Lincoln Coordination"], "Lincoln Coordination", rowNumber), awardLetterRecipient: text(row["Award Letter Recipient"], "Award Letter Recipient", rowNumber), eligibilityDescription: text(row["Eligibility Requirements"], "Eligibility Requirements", rowNumber), officialProgramUrl: common.url, lastVerifiedDate: isoDate(row["Last Verified Date"], "Last Verified Date", rowNumber) };
+  const applicationUrl = text(row["Apply URL"], "Apply URL", rowNumber, true);
+  return { ...common, programType: text(row["Program Type"], "Program Type", rowNumber).toUpperCase(), benefitsStartDate: isoDate(row["Benefits Start Date"], "Benefits Start Date", rowNumber), benefitsEndDate: null, maximumYear, maximumWeeklyBenefit: nonNegativeNumber(row["Maximum Weekly Benefit (2026)"], "Maximum Weekly Benefit (2026)", rowNumber), familyLeaveWeeks: null, medicalLeaveWeeks: nonNegativeNumber(row["Max Duration Weeks"], "Max Duration Weeks", rowNumber), coveredLeaveCategories: categories(row, rowNumber), applicationOwner: text(row["Application Owner"], "Application Owner", rowNumber), applicationUrl, lincolnCoordination: text(row["Lincoln Coordination"], "Lincoln Coordination", rowNumber), awardLetterRecipient: text(row["Award Letter Recipient"], "Award Letter Recipient", rowNumber), eligibilityDescription: text(row["Eligibility Requirements"], "Eligibility Requirements", rowNumber), officialProgramUrl: common.url, lastVerifiedDate: isoDate(row["Last Verified Date"], "Last Verified Date", rowNumber) };
 });
 const rules = [...familyRules, ...disabilityRules];
 const seen = new Set();
