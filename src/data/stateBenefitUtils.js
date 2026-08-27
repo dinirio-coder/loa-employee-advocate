@@ -72,6 +72,7 @@ export const getStateBenefitCoordination = (employee, options = {}) => {
   const overlapEnd = leaveEnd && payPeriodThrough ? new Date(Math.min(timestamp(leaveEnd), timestamp(payPeriodThrough))).toISOString().slice(0, 10) : null;
   const overlapDays = overlapStart && overlapEnd ? daysBetween(overlapStart, overlapEnd) : 0;
   const eligibleDays = overlapDays;
+  const hasRequiredDates = Boolean(leaveStart && leaveEnd && payPeriodFrom && payPeriodThrough);
   const applicable = Boolean(rule && activeOnLeaveDate && maximumYearApplies && categoryCovered && eligibleDays > 0);
   const target = Math.max(0, numberOrNull(options.coordinatedPayPeriodTarget ?? employee?.biweeklySalary ?? employee?.biweeklySalaryAmount) ?? Number.POSITIVE_INFINITY);
   const lincolnGross = Math.max(0, cents(numberOrNull(options.lincolnGross) ?? target * 0.6667));
@@ -83,7 +84,7 @@ export const getStateBenefitCoordination = (employee, options = {}) => {
   const awardStatus = suppliedStateAward === null ? "Pending state award" : suppliedStateAward === 0 ? "No state benefit awarded" : "Award recorded";
   const reconciliationEligible = suppliedStateAward !== null && ["award recorded", "approved", "received"].includes(awardStatus.toLowerCase());
   return {
-    state, program: rule, applicable,
+    state, program: rule, applicable, hasRequiredDates, dateStatus: hasRequiredDates ? "complete" : "missing",
     futureProgram: Boolean(rule && leaveStart && leaveStart < rule.benefitsStartDate),
     programStatus: rule?.programStatus || null, activeOnLeaveDate, sourceCategory, category, categoryCovered, maximumYearApplies,
     effectiveYear: applicable ? rule.maximumYear : null, weeklyMaximum: applicable ? rule.maximumWeeklyBenefit : 0,

@@ -35,7 +35,7 @@ export const getStateCoordinationExperience = (employee, options = {}) => {
   } else if (selected && coordination.programStatus !== "Active") {
     status = "inactive";
     statusLabel = "Not currently available";
-  } else if (selected && (!coordination.leaveStart || !coordination.payPeriodFromDate || !coordination.payPeriodThroughDate)) {
+  } else if (selected && !coordination.hasRequiredDates) {
     status = "dates-missing";
     statusLabel = "Dates need confirmation";
     statusMessage = "Confirm your leave dates before a state benefit estimate can be calculated.";

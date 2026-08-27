@@ -795,7 +795,7 @@ function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleIte
   );
 }
 
-function LifecycleOverview({ employee }) {
+export function LifecycleOverview({ employee }) {
   const lifecycle = getEmployeeLifecycle(employee);
   const [openStages, setOpenStages] = useState(() => new Set([lifecycle.suggestedStageId || "pre-leave"]));
   const [checked, setChecked] = useState({});
@@ -863,7 +863,7 @@ function PayRow({ label, value, highlight }) {
   );
 }
 
-function PayExperienceLayout({ experience }) {
+export function PayExperienceLayout({ experience }) {
   const isStd = experience.scenario === "std";
   const chartTotal = Number(experience.coordinatedTotal || experience.coordinatedPayTarget || 0);
   const segments = experience.components.filter((component) => component.amount > 0).map((component) => ({
@@ -891,7 +891,7 @@ function PayExperienceLayout({ experience }) {
   );
 }
 
-function ParentalCoordinationCard({ experience }) {
+export function ParentalCoordinationCard({ experience }) {
   const segments = experience.components.filter((component) => component.amount > 0);
   const total = Number(experience.coordinatedPayTarget || 0);
   return <Panel className="border-l-4 border-l-rose-500 p-6"><h3 className="font-serif text-2xl font-bold">Estimated Pay Coordination</h3><p className="mt-1 text-sm text-slate-400">Planning estimates before taxes and deductions</p><h4 className="mt-5 font-bold text-slate-200">Paid parental leave</h4><p className="mt-3 text-sm font-semibold text-rose-200">100% coordinated-pay planning estimate</p><div className="mt-4 flex h-12 overflow-hidden rounded-lg border border-slate-700" role="img" aria-label={`Paid parental leave coordination: ${segments.map((segment) => `${segment.label} ${money(segment.amount)}`).join(", ")}`}><div className="flex w-full">{segments.map((segment) => <div key={segment.label} className={`${segment.label === "State benefit estimate" ? "bg-amber-400" : "bg-rose-500"} flex items-center justify-center px-2 text-center text-xs font-bold text-white`} style={{ width: `${total > 0 ? segment.amount / total * 100 : 0}%` }}>{segment.label}</div>)}</div></div><div className="mt-4 space-y-3 text-sm">{segments.map((segment) => <PayRow key={segment.label} label={segment.label} value={money(segment.amount)} />)}<div className="border-t border-slate-600 pt-3"><PayRow label="Estimated coordinated pay" value={money(experience.coordinatedPayTarget)} highlight /></div></div></Panel>;
@@ -911,7 +911,7 @@ function TimelineCard({ tone, title, text }) {
   );
 }
 
-function StateStatutoryCard({ employee }) {
+export function StateStatutoryCard({ employee }) {
   const experience = getStateCoordinationExperience(employee);
   return (
     <Panel className="p-5">
@@ -1086,7 +1086,7 @@ function PlanTab({ employee }) {
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
 
-function ReturnToWorkTab({ employee }) {
+export function ReturnToWorkTab({ employee }) {
   const experience = getEmployeeReturnToWorkExperience(employee, { asOfDate: "2026-08-27" });
   const [checked, setChecked] = useState({});
   const toggle = (id) => setChecked((current) => ({ ...current, [id]: !current[id] }));
