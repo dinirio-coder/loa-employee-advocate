@@ -16,10 +16,10 @@ import { getEmployeePriorityActions } from "./data/actionPlanUtils";
 import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
-import { getEmployeePayTimeline } from "./data/payTimelineUtils";
 import { getStateBenefitCoordination } from "./data/stateBenefitUtils";
 import { getEmployeeLifecycleAlerts } from "./data/lifecycleAlertUtils";
 import { getEmployeeReturnToWorkExperience } from "./data/returnToWorkExperience";
+import { getEmployeePayExperience } from "./data/payExperienceUtils";
 import {
   filterSupportResources,
   getSupportResourceCategories,
@@ -840,50 +840,10 @@ function LifecycleOverview({ employee }) {
 const PAY_DISCLAIMER = "Informational guidance based on the available Twilio policy and calculator rules. Pay and benefit amounts are estimates and may be affected by eligibility, plan maximums, state benefits, payroll timing, deductions, taxes, and applicable offsets. Lincoln Financial, Twilio Leave Operations, and the applicable government agency make the official claim, eligibility, and benefit determinations. This is not legal, tax, or medical advice.";
 
 const displayDate = (value) => value ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)) : TEXT_NOT_AVAILABLE;
-const displayMoney = (value) => value == null ? TEXT_NOT_AVAILABLE : money(value);
 
 function PayTimelineTab({ employee }) {
-  const model = getEmployeePayTimeline(employee, { asOfDate: "2026-08-26" });
-  const source = model.sourcePayValues;
-  const planning = model.planningEstimate;
-  const stateBenefit = model.stateBenefit;
-  const status = model.hasPayData ? model.missingInformation.length ? "Partial source data" : "Source data available" : "Information unavailable";
-  const statusTone = model.hasPayData ? model.missingInformation.length ? "amber" : "green" : "amber";
-  const summaryCards = [
-    ["Biweekly Base-Pay Target", planning?.basePayTarget, "Source salary target", "The maximum coordinated gross target for this pay period."],
-    ["Assumed State Benefit Offset", stateBenefit.assumedStateOffset, stateBenefit.sourceAmountType === "source-recorded" ? "Source-recorded" : "Planning assumption—not state approval", "Maximum used pending state award."],
-    ["Lincoln Estimate After State Offset", planning?.lincolnNetAfterStateOffset, "Planning estimate", "Gross Lincoln estimate less the applicable state offset."],
-    ["Twilio Estimated Top-Up", planning?.twilio?.amount, "Planning estimate", "Remaining amount toward the base-pay target after confirmed offsets."],
-  ];
-
-  return (
-    <div className="space-y-5">
-      <Panel className="p-6 sm:p-7">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay and Leave Timeline</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review source-backed pay information, planning estimates, and important dates from your leave record.</p></div>
-          <Badge tone={statusTone}>{status}</Badge>
-        </div>
-      </Panel>
-
-      <section aria-labelledby="pay-overview-heading">
-        <div className="mb-3 flex items-end justify-between gap-3"><h3 id="pay-overview-heading" className="font-serif text-2xl font-bold">Pay overview</h3><span className="text-xs text-slate-400">Your pay information and estimates</span></div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map(([label, value, kind, explanation]) => <Panel key={label} className="p-5"><dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-3 text-xl font-bold">{displayMoney(value)}</dd>{kind && <div className="mt-2 text-xs font-semibold text-[#72A5FF]">{kind}</div>}<p className="mt-3 text-xs leading-5 text-slate-400">{explanation}</p></Panel>)}
-        </div>
-      </section>
-
-      {planning && <Panel className="p-6" aria-labelledby="composition-heading"><h3 id="composition-heading" className="font-serif text-2xl font-bold">Pay composition</h3><p className="mt-1 text-sm text-slate-400">Planning estimate coordinated to the biweekly base-pay target.</p><div className="mt-5 flex h-12 overflow-hidden rounded-lg border border-[#38425E]" role="img" aria-label={`Pay composition: State assumed maximum ${money(stateBenefit.assumedStateOffset)}, Lincoln after state offset ${money(planning.lincolnNetAfterStateOffset)}, Twilio top-up ${money(planning.twilio.amount)}`}><div className="flex items-center justify-center bg-[#F59E0B] px-2 text-center text-xs font-bold" style={{ width: `${(stateBenefit.assumedStateOffset / planning.basePayTarget) * 100}%` }}>State assumed maximum</div><div className="flex items-center justify-center bg-[#1B66EE] px-2 text-center text-xs font-bold" style={{ width: `${(planning.lincolnNetAfterStateOffset / planning.basePayTarget) * 100}%` }}>Lincoln after state offset</div><div className="flex items-center justify-center bg-[#EF223A] px-2 text-center text-xs font-bold" style={{ width: `${(planning.twilio.amount / planning.basePayTarget) * 100}%` }}>Twilio top-up</div></div><div className="mt-4 grid gap-2 text-sm sm:grid-cols-3"><div><strong className="text-amber-300">State assumed maximum:</strong> {money(stateBenefit.assumedStateOffset)}</div><div><strong className="text-[#72A5FF]">Lincoln after state offset:</strong> {money(planning.lincolnNetAfterStateOffset)}</div><div><strong className="text-[#FF8792]">Twilio top-up:</strong> {money(planning.twilio.amount)}</div></div><p className="mt-3 text-xs text-slate-400">Components are coordinated toward {money(planning.basePayTarget)}; state amounts are planning assumptions until an award is recorded.</p></Panel>}
-
-      {planning && <Panel className="p-6" aria-labelledby="reconciliation-heading"><h3 id="reconciliation-heading" className="font-serif text-2xl font-bold">Pending State Award Reconciliation</h3><dl className="mt-4 space-y-3 text-sm"><PayRow label="Award status" value={stateBenefit.awardStatus} /><PayRow label="Assumed State Benefit Offset" value={money(stateBenefit.assumedStateOffset)} /><PayRow label="Actual state award" value={stateBenefit.actualStateAward == null ? TEXT_NOT_AVAILABLE : money(stateBenefit.actualStateAward)} /><PayRow label="Estimated Lincoln reconciliation" value={money(stateBenefit.lincolnReconciliation)} highlight /></dl><div className="mt-5 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100"><strong>Award-letter submission instructions:</strong> Submit the state award letter through the authorized Lincoln process and notify Twilio Leave Operations / Payroll. A pending, denied, or missing claim does not create a reconciliation. <strong>Responsible party:</strong> Employee submits the letter; Lincoln Financial records the award and determines the reconciliation; Twilio Leave Operations / Payroll coordinates payroll.</div></Panel>}
-
-      <Panel className="p-6" aria-labelledby="dates-heading"><div className="flex items-end justify-between gap-3"><div><h3 id="dates-heading" className="font-serif text-2xl font-bold">Important dates</h3><p className="mt-1 text-sm text-slate-400">Dates retain their source labels and ownership.</p></div>{model.nextMilestone?.hasMilestone && <span className="text-xs text-[#72A5FF]">Next: {model.nextMilestone.label}</span>}</div>{model.timelineEvents.length ? <ol className="mt-5 space-y-4 border-l border-[#38425E] pl-5">{model.timelineEvents.map((event) => <li key={event.id} className="relative"><span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${event.status === "past" ? "bg-[#656E87]" : event.status === "current" ? "bg-[#EF223A]" : "bg-[#1B66EE]"}`} /><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><strong>{event.label}</strong><time dateTime={event.date} className="text-sm font-semibold text-[#72A5FF]">{displayDate(event.date)}</time></div><div className="mt-1 text-xs text-slate-400">{event.owner}{event.source ? ` · ${event.source}` : ""}{event.conflict ? " · Source dates conflict" : ""}</div></li>)}</ol> : <p className="mt-5 rounded-lg border border-[#38425E] p-4 text-sm text-slate-400">No reliable source-backed timeline events are available.</p>}</Panel>
-
-      {model.timelineRanges.length > 0 && <Panel className="p-6" aria-labelledby="window-heading"><h3 id="window-heading" className="font-serif text-2xl font-bold">Leave window</h3>{model.timelineRanges.map((range) => <div key={range.id} className="mt-4"><div className="grid gap-3 sm:grid-cols-2"><div><span className="text-xs uppercase tracking-wider text-slate-400">{range.startLabel}</span><strong className="mt-1 block">{displayDate(range.startDate)}</strong></div><div><span className="text-xs uppercase tracking-wider text-slate-400">{range.endLabel}</span><strong className="mt-1 block">{displayDate(range.endDate)}</strong></div></div><div className="mt-4 h-4 rounded-full border border-[#38425E] bg-[#10172a]"><div className="h-full w-full rounded-full bg-[#1B66EE]" /></div><p className="mt-3 text-sm text-slate-300">{range.durationDays} days · {range.durationWeeks.toFixed(1)} weeks · {range.context || "Source record"}</p><p className="mt-1 text-xs text-slate-400">Source: {range.source || TEXT_NOT_AVAILABLE}</p></div>)}</Panel>}
-
-      <Panel className="p-6"><details><summary className="cursor-pointer list-none text-lg font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-[#72A5FF]">How this estimate works</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p><strong>Formula:</strong> {planning ? "STD planning uses biweekly base salary ÷ 10 for the daily business-day rate; days 1–7 use five eligible business days, then 66.67% Lincoln and 33.33% Twilio planning components." : "No planning formula is applied to this record classification."}</p><p><strong>Source fields:</strong> {source ? `${source.sourceSheet || TEXT_NOT_AVAILABLE}; biweekly salary, product, benefit fields, and pay-period dates.` : TEXT_NOT_AVAILABLE}</p><p><strong>Missing information:</strong> {model.missingInformation.length ? model.missingInformation.join(" ") : "No additional model-level gaps identified."}</p><p><strong>Administrative owner:</strong> Lincoln Financial determines claims and benefits; Twilio Leave Operations and Payroll handle applicable internal administration.</p><p>Source record values are reported fields. Planning estimates are calculations and do not establish eligibility, approval, payment, or job protection.</p></div></details></Panel>
-      <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">{PAY_DISCLAIMER}</p>
-    </div>
-  );
+  const experience = getEmployeePayExperience(employee, { asOfDate: "2026-08-26" });
+  return <><PayExperienceLayout experience={experience} /><StateProgramCapDetails experience={experience} /></>;
 }
 
 function PayRow({ label, value, highlight }) {
@@ -903,204 +863,20 @@ function PayRow({ label, value, highlight }) {
   );
 }
 
-function PayTab({ employee }) {
-  const pay = getEmployeePaySummary(employee);
+function PayExperienceLayout({ experience }) {
+  const isStd = experience.scenario === "std";
+  const chartTotal = Number(experience.coordinatedTotal || experience.coordinatedPayTarget || 0);
+  const segments = experience.components.filter((component) => component.amount > 0).map((component) => ({
+    ...component,
+    width: chartTotal > 0 ? Math.max(0, component.amount / chartTotal * 100) : 0,
+    tone: component.label === "State benefit estimate" ? "bg-amber-400" : component.label === "Short-Term Disability estimate" ? "bg-blue-500" : "bg-rose-500",
+  }));
+  return <div className="space-y-5"><Panel className="p-6 sm:p-7"><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay and Leave Timeline</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review planning estimates for this pay period. Final amounts may vary.</p><div className="mt-4 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">{experience.notice}</div></Panel><div className="grid gap-5 lg:grid-cols-[2fr_3fr]"><div className="space-y-5"><Panel className="p-6"><h3 className="font-serif text-xl font-bold">Pay Estimate Summary</h3><div className="mt-4 space-y-3">{experience.components.map((component) => <div key={component.label} className="border-b border-slate-700/70 pb-3 last:border-b-0"><div className="flex items-baseline justify-between gap-3"><span className="text-sm text-slate-300">{component.label}</span><strong>{money(component.amount)}</strong></div><div className="mt-1 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></div>)}{experience.coordinatedPayTarget != null && <div className="border-t border-slate-600 pt-3"><div className="flex items-baseline justify-between gap-3"><span className="font-bold">Estimated coordinated pay</span><strong className="text-xl text-emerald-300">{money(experience.coordinatedPayTarget)}</strong></div><div className="mt-1 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></div>}</div></Panel>{experience.payPeriod && <Panel className="p-6"><h3 className="font-serif text-xl font-bold">{experience.payPeriodLabel}</h3><p className="mt-2 text-sm text-slate-300">{experience.payPeriod.from} — {experience.payPeriod.through}</p></Panel>}{experience.missingInformation.length > 0 && <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Information needed</h3><p className="mt-2 text-sm leading-6 text-slate-300">Some pay information is unavailable. Lincoln or Twilio Payroll can confirm the details.</p></Panel>}</div><div className="space-y-5">{isStd && experience.waitingPeriodGuidance && <Panel className="border-l-4 border-l-cyan-400 p-6"><h3 className="font-serif text-xl font-bold">First 7 Calendar Days</h3><Badge tone="cyan">Short-Term Disability waiting period</Badge><p className="mt-3 text-sm font-semibold text-cyan-200">100% salary-continuation planning assumption</p><div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-800"><div className="h-full w-full rounded-full bg-cyan-400" /></div><p className="mt-4 text-sm leading-6 text-slate-300">{experience.waitingPeriodGuidance}</p></Panel>}{isStd && <Panel className="p-6"><h3 className="font-serif text-2xl font-bold">Estimated Pay Coordination</h3><p className="mt-1 text-sm text-slate-400">Planning estimates before taxes and deductions</p><h4 className="mt-5 font-bold text-slate-200">Day 8 and Later</h4>{chartTotal > 0 && <div className="mt-4 flex h-12 overflow-hidden rounded-lg border border-slate-700" role="img" aria-label={`Estimated pay coordination: ${segments.map((segment) => `${segment.label} ${money(segment.amount)}`).join(", ")}`}><div className="flex w-full">{segments.map((segment) => <div key={segment.label} className={`${segment.tone} flex items-center justify-center px-2 text-center text-xs font-bold text-white`} style={{ width: `${segment.width}%` }}>{segment.label}</div>)}</div></div>}<div className="mt-4 space-y-3 text-sm">{segments.map((segment) => <PayRow key={segment.label} label={segment.label} value={money(segment.amount)} />)}<div className="border-t border-slate-600 pt-3"><PayRow label="Estimated coordinated pay" value={money(experience.coordinatedPayTarget)} highlight /></div></div><p className="mt-4 text-xs leading-5 text-slate-400">{experience.formula}</p></Panel>}</div></div><Panel className="p-6"><h3 className="font-serif text-xl font-bold">How your pay is delivered</h3><p className="mt-3 text-sm leading-6 text-slate-300">{experience.paymentDelivery}</p></Panel>{experience.stateAdjustment && <Panel className="p-6"><h3 className="font-serif text-xl font-bold">State benefit adjustment</h3><dl className="mt-4 space-y-3 text-sm"><PayRow label="Award status" value={experience.stateAdjustment.awardStatus} /><PayRow label="Estimated state benefit used" value={money(experience.stateAdjustment.estimatedStateBenefit)} /><PayRow label="State award reported" value={experience.stateAdjustment.stateAwardReported == null ? TEXT_NOT_AVAILABLE : money(experience.stateAdjustment.stateAwardReported)} /><PayRow label="Estimated adjustment" value={money(experience.stateAdjustment.estimatedAdjustment)} /></dl><p className="mt-4 text-sm leading-6 text-slate-300">The initial planning estimate may use the state program’s maximum benefit. After the award is reported, Lincoln can adjust the coordinated amount.</p></Panel>}<Panel className="p-6"><h3 className="font-serif text-xl font-bold">Pay and job protection are different</h3><p className="mt-3 text-sm leading-6 text-slate-300">{experience.jobProtectionGuidance}</p></Panel></div>;
+}
 
-  if (!pay.hasPayData) {
-    return (
-      <Panel className="p-6">
-        <Badge tone="amber">Pay record unavailable</Badge>
-        <h2 className="mt-4 font-serif text-2xl font-bold">Legacy pay record view</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-300">
-          {PAY_UNAVAILABLE_MESSAGE}
-        </p>
-      </Panel>
-    );
-  }
-
-  const [offset, setOffset] = useState(Number(employee.stateOffset ?? 0));
-  const annualSalary = Number(employee.annualSalary ?? 0);
-  const biweeklySalary = pay.biweeklySalary;
-  const daily = biweeklySalary / 10;
-  const epPay = daily * 5;
-  const disability = biweeklySalary * 0.6667;
-  const topUp = biweeklySalary - disability;
-  const netDisability = Math.max(
-    0,
-    disability - Number(offset || 0)
-  );
-  const coordinated =
-    netDisability + topUp + Number(offset || 0);
-
-  return (
-    <div className="grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
-      <div className="space-y-5">
-        <Panel className="p-6">
-          <Badge tone="green">Verified salary input</Badge>
-
-          <h2 className="mt-4 font-serif text-2xl font-bold">
-            Legacy pay calculation
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Transparent estimates based on your salary
-            record. Taxes, deductions, eligibility, and agency awards can
-            change final pay.
-          </p>
-
-          <dl className="mt-6 space-y-3">
-            <PayRow
-              label="Annual base salary"
-              value={employee.annualSalary == null ? "Not available in source report" : money(employee.annualSalary)}
-            />
-            <PayRow
-              label="Biweekly base salary"
-              value={money(pay.biweeklySalary)}
-              highlight
-            />
-            <PayRow
-              label="Calculated salary amount"
-              value={pay.payableCalculatedSalaryAmount == null ? "Not available" : money(pay.payableCalculatedSalaryAmount)}
-            />
-            <PayRow label="Leave type" value={safeText(pay.product, "Not available")} />
-            <PayRow label="Pay category" value={safeText(pay.payCode, "Not available")} />
-            <PayRow
-              label="ATP benefit gross amount (source)"
-              value={pay.benefitGrossAmount == null ? "Not available" : money(pay.benefitGrossAmount)}
-            />
-            <PayRow
-              label="ATP total offsets (source)"
-              value={pay.totalOffsets == null ? "Not available" : money(pay.totalOffsets)}
-            />
-            <PayRow
-              label="ATP payable benefit percentage (source)"
-              value={pay.payableBenefitPercentage == null ? "Not available" : `${pay.payableBenefitPercentage}%`}
-            />
-            <PayRow
-              label="ATP pay period (source)"
-              value={pay.payPeriodFromDate && pay.payPeriodThroughDate ? `${pay.payPeriodFromDate} — ${pay.payPeriodThroughDate}` : "Not available in source report"}
-            />
-            <PayRow
-              label="Estimated daily pay"
-              value={money(daily)}
-            />
-          </dl>
-        </Panel>
-
-        <Panel className="p-6">
-          <label
-            className="block text-xs font-bold uppercase tracking-wider text-slate-400"
-            htmlFor="offset"
-          >
-            Estimated state benefit offset
-          </label>
-
-          <div className="mt-3 flex rounded-xl border border-slate-600 bg-[#10172a] focus-within:border-cyan-400">
-            <span className="px-4 py-3 text-slate-500">$</span>
-            <input
-              id="offset"
-              type="number"
-              min="0"
-              step="0.01"
-              value={offset}
-              onChange={(event) => setOffset(event.target.value)}
-              className="w-full bg-transparent py-3 pr-4 text-white outline-none"
-            />
-          </div>
-
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            Enter the award expected for the same biweekly period. This is an
-            offset, not extra pay.
-          </p>
-        </Panel>
-      </div>
-
-      <Panel className="overflow-hidden">
-        <div className="border-b border-slate-700 bg-slate-800/40 p-5">
-          <h3 className="font-serif text-xl font-bold">
-            Estimated Pay Coordination
-          </h3>
-          <p className="mt-1 text-xs text-slate-400">
-            Illustrative gross amounts before taxes and deductions
-          </p>
-        </div>
-
-        <div className="space-y-5 p-5 sm:p-6">
-          <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/[.05] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Badge tone="cyan">
-                Days 1–7 · Elimination Period
-              </Badge>
-              <strong className="text-cyan-300">Planning estimate</strong>
-            </div>
-
-            <p className="mt-3 text-sm text-slate-300">
-              Twilio income protection covers the first seven calendar days.
-              The estimate below uses five scheduled workdays.
-            </p>
-
-            <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full w-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400" />
-            </div>
-
-            <div className="mt-3 flex justify-between text-sm">
-              <span className="text-slate-400">Estimated EP pay</span>
-              <strong>{money(epPay)}</strong>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-violet-400/25 bg-violet-400/[.05] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Badge tone="violet">Day 8+ · Coordinated Pay</Badge>
-              <strong className="text-violet-300">Planning target</strong>
-            </div>
-
-            <div className="mt-5 overflow-hidden rounded-full bg-slate-800 sm:flex">
-              <div className="bg-violet-500 px-3 py-2 text-center text-xs font-bold sm:w-2/3">
-                66.67% STD
-              </div>
-              <div className="bg-rose-500 px-3 py-2 text-center text-xs font-bold sm:w-1/3">
-                33.33% top-up
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3 text-sm">
-              <PayRow
-                label="Gross STD component (66.67%)"
-                value={money(disability)}
-              />
-              <PayRow
-                label={`Less ${employee.state} state offset`}
-                value={`− ${money(offset)}`}
-              />
-              <PayRow
-                label="Net carrier-funded component"
-                value={money(netDisability)}
-              />
-              <PayRow
-                label="Estimated top-up component (33.33%)"
-                value={money(topUp)}
-              />
-
-              <div className="border-t border-slate-600 pt-3">
-                <PayRow
-                  label="Coordinated biweekly estimate"
-                  value={money(coordinated)}
-                  highlight
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100">
-            ⚠ Estimates are informational. Lincoln Financial owns claim
-            calculations; government agencies own statutory awards; payroll
-            deductions and taxes are not shown.
-          </div>
-        </div>
-      </Panel>
-    </div>
-  );
+function StateProgramCapDetails({ experience }) {
+  if (!experience.stateProgram) return null;
+  return <Panel className="border-l-4 border-l-amber-400 p-6"><h3 className="font-serif text-xl font-bold">State disability program maximum</h3><p className="mt-2 text-sm text-slate-300">{experience.stateProgram.name} estimate</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-slate-400">Weekly program maximum</dt><dd className="mt-1 font-bold">{money(experience.stateProgram.weeklyMaximum)}</dd></div><div><dt className="text-slate-400">Calculated maximum for this pay period</dt><dd className="mt-1 font-bold">{money(experience.stateProgram.calculatedMaximum)}</dd></div><div><dt className="text-slate-400">Covered days used</dt><dd className="mt-1 font-bold">{experience.stateProgram.eligibleDays}</dd></div></dl><div className="mt-3 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></Panel>;
 }
 
 function TimelineCard({ tone, title, text }) {

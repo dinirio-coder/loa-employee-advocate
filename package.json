@@ -17,6 +17,8 @@
     "test:return-to-work": "node scripts/validateReturnToWorkExperience.mjs",
     "test:flexreturn": "node scripts/validateFlexReturn.mjs",
     "test:return-to-work-ui": "node scripts/validateReturnToWorkUi.mjs",
+    "test:pay-experience": "node scripts/validatePayExperience.mjs",
+    "test:pay-ui": "node scripts/validatePayUi.mjs",
     "test:rtw": "node scripts/validateRtw.mjs",
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",

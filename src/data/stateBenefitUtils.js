@@ -62,9 +62,9 @@ export const getStateBenefitCoordination = (employee, options = {}) => {
   const sourceCategory = sourceLeaveCategory(employee);
   const category = normalizeLeaveCategory(sourceCategory);
   const requiredProgramTypes = category === "OWN_MEDICAL" ? ["MEDICAL", "COMBINED"] : ["FAMILY", "COMBINED"];
-  const rule = stateRules
-    .filter((candidate) => requiredProgramTypes.includes(candidate.programType) && candidate.coveredLeaveCategories.includes(category))
-    .sort((left, right) => right.benefitsStartDate.localeCompare(left.benefitsStartDate))[0] || null;
+  const candidateRules = stateRules.filter((candidate) => requiredProgramTypes.includes(candidate.programType) && candidate.coveredLeaveCategories.includes(category));
+  const effectiveRules = candidateRules.filter((candidate) => !leaveStart || candidate.benefitsStartDate <= leaveStart);
+  const rule = [...(effectiveRules.length ? effectiveRules : candidateRules)].sort((left, right) => right.benefitsStartDate.localeCompare(left.benefitsStartDate))[0] || null;
   const maximumYearApplies = Boolean(rule && rule.maximumYear === leaveYear && rule.maximumYear === paymentYear);
   const activeOnLeaveDate = Boolean(rule && leaveStart && rule.programStatus === "Active" && leaveStart >= rule.benefitsStartDate && (!rule.benefitsEndDate || leaveStart <= rule.benefitsEndDate));
   const categoryCovered = Boolean(rule && category && rule.coveredLeaveCategories.includes(category));
