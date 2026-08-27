@@ -152,17 +152,17 @@ const validate = (employee) => {
 const luke = validate(
   profile("Luke", "Skywalker", "1048291"),
 );
-assert.equal(luke.suggestedStageId, "return-to-work");
+assert.equal(luke.suggestedStageId, "after-return");
 
 assert(
   luke.stages
     .find((stage) => stage.id === "return-to-work")
-    .items.some((task) => task.id === "confirm-return-date"),
+      .items.some((task) => task.id === "confirm-return-date"),
 );
 const will = validate(
   profile("Will", "Johansson", "2749015"),
 );
-assert.equal(will.suggestedStageId, "pre-leave");
+assert.equal(will.suggestedStageId, "documentation");
 
 const documentation = validate({
   currentReportStatus: "PE",
@@ -190,9 +190,7 @@ const ambiguous = validate({
 assert.equal(ambiguous.hasSuggestedStage, false);
 
 assert(
-  ambiguous.suggestedStageBasis.includes(
-    "Review the stages below",
-  ),
+  ambiguous.suggestedStageBasis.includes("not enough reliable date information"),
 );
 assert.equal(
   getEmployeeLifecycle(
@@ -204,7 +202,7 @@ assert.equal(
     },
     { asOfDate: "2026-08-26" },
   ).suggestedStageId,
-  "return-to-work",
+  "pre-leave",
 );
 
 console.log("Seven-stage lifecycle model validation passed.");

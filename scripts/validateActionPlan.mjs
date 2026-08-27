@@ -38,7 +38,7 @@ assert.doesNotMatch(actionText(fourDays), /prepar|workday|ramp|handoff|out-of-of
 validateCommon(fourDays);
 
 const today = getEmployeePriorityActions(employeeWithLeave(asOfDate), { asOfDate });
-assert.deepEqual(names(today), names(preparation));
+assert.deepEqual(names(today), ["Check for Lincoln updates", "Complete requested actions"]);
 validateCommon(today);
 
 const pendingDocumentation = getEmployeePriorityActions({
@@ -56,7 +56,7 @@ assert.match(actionText(pendingDocumentation), /15 calendar days/);
 validateCommon(pendingDocumentation);
 
 const returning = getEmployeePriorityActions({
-  sourceRecords: [{ estimatedRTW: "2026-09-15" }],
+  sourceRecords: [{ leaveBeginDate: "2026-08-01", leaveEndDate: "2026-09-20", estimatedRTW: "2026-09-05" }],
 }, { asOfDate });
 assert.deepEqual(names(returning), [
   "Decide whether you may need an extension",

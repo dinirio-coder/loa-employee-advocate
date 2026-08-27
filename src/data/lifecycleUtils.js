@@ -1,20 +1,6 @@
-import { getEmployeeReturnToWorkSummary } from "./rtwUtils.js";
+import { getLifecycleStageDecision } from "./lifecycleStageEngine.js";
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
-
-const populated = (value) =>
-  value !== null &&
-  value !== undefined &&
-  String(value).trim() !== "";
-
-const validDate = (value) => {
-  if (!populated(value)) return null;
-
-  const text = String(value).trim();
-  const date = new Date(`${text}T00:00:00Z`);
-
-  return Number.isNaN(date.getTime()) ? null : text;
-};
 
 const item = (
   id,
@@ -108,62 +94,9 @@ export const LIFECYCLE_STAGE_DEFINITIONS = [
 ];
 
 export const getEmployeeLifecycle = (employee, options = {}) => {
-  const records = Array.isArray(employee?.sourceRecords)
-    ? employee.sourceRecords
-    : [];
-
-  const rtw = getEmployeeReturnToWorkSummary(employee);
-  const asOfDate =
-    validDate(options.asOfDate) || new Date().toISOString().slice(0, 10);
-
-  const leaveStart = records.find((record) =>
-    validDate(record.leaveBeginDate),
-  );
-
-  const status = String(
-    employee?.currentReportStatus ||
-      employee?.leaveStatus ||
-      employee?.claimStatus ||
-      "",
-  ).toUpperCase();
-
-  const hasFutureLeave =
-    leaveStart &&
-    validDate(leaveStart.leaveBeginDate) >= asOfDate;
-
-  const hasReceivedDate = populated(employee?.dateReceived);
-
-  const hasDocumentedHandoff = records.some(
-    (record) =>
-      populated(record.handoffDate) ||
-      populated(record.handoffStatus) ||
-      populated(record.delegationActivationDate),
-  );
-
-  let suggestedStageId = null;
-  let suggestedStageBasis =
-    "Review the stages below and start with the one that best matches your leave.";
-
-  if (rtw.hasReturnToWorkData) {
-    suggestedStageId = "return-to-work";
-    suggestedStageBasis =
-      "Your return information is available, so it may be time to plan your return.";
-  } else if (hasDocumentedHandoff) {
-    suggestedStageId = "business-handoff";
-    suggestedStageBasis =
-      "Your leave preparation information is available.";
-  } else if (hasFutureLeave) {
-    suggestedStageId = "pre-leave";
-    suggestedStageBasis =
-      "Your planned leave starts in the future.";
-  } else if (
-    ["PE", "PENDING", "PEND"].includes(status) &&
-    hasReceivedDate
-  ) {
-    suggestedStageId = "documentation";
-    suggestedStageBasis =
-      "Lincoln may still need documentation or follow-up.";
-  }
+  const stageDecision = getLifecycleStageDecision(employee, options);
+  const suggestedStageId = stageDecision.stageId;
+  const suggestedStageBasis = stageDecision.reason;
 
   const stages = LIFECYCLE_STAGE_DEFINITIONS.map((stage) => ({
     ...stage,
@@ -300,8 +233,8 @@ export const getEmployeeLifecycle = (employee, options = {}) => {
       "Employee",
       MY_LINCOLN_URL,
       "Before your return",
-      rtw.hasReturnToWorkData
-        ? `${rtw.controllingDateLabel} is available.`
+      stageDecision.normalizedDates.expectedReturn || stageDecision.normalizedDates.actualReturn
+        ? "Return information is available."
         : "Your return date still needs confirmation.",
     ),
   ];
@@ -356,6 +289,8 @@ export const getEmployeeLifecycle = (employee, options = {}) => {
     suggestedStageId,
     suggestedStageBasis,
     hasSuggestedStage: Boolean(suggestedStageId),
+    stageDecision,
+    dataQuality: stageDecision.dataQuality,
     stages,
   };
 };
