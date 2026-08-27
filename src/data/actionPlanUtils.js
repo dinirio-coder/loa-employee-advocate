@@ -1,18 +1,49 @@
 import { getEmployeeReturnToWorkSummary } from "./rtwUtils.js";
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
-const SERVICENOW_URL = "https://twilio.service-now.com/";
+const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
 
-const populated = (value) => value !== null && value !== undefined && String(value).trim() !== "";
+const populated = (value) =>
+  value !== null &&
+  value !== undefined &&
+  String(value).trim() !== "";
+
 const validDate = (value) => {
   if (!populated(value)) return null;
+
   const text = String(value).trim();
   const date = new Date(`${text}T00:00:00Z`);
+
   return Number.isNaN(date.getTime()) ? null : text;
 };
-const recordWith = (records, field) => records.find((record) => validDate(record[field]));
 
-const action = (id, title, description, timing, owner, destination, basis, urgency = "Normal") => ({
+const recordWith = (records, field) =>
+  records.find((record) => validDate(record[field]));
+
+const daysBetween = (fromDate, toDate) => {
+  const validFrom = validDate(fromDate);
+  const validTo = validDate(toDate);
+
+  if (!validFrom || !validTo) return null;
+
+  const fromTime = new Date(`${validFrom}T00:00:00Z`).getTime();
+  const toTime = new Date(`${validTo}T00:00:00Z`).getTime();
+
+  return Math.round(
+    (toTime - fromTime) / DAY_IN_MILLISECONDS,
+  );
+};
+
+const action = (
+  id,
+  title,
+  description,
+  timing,
+  owner,
+  destination,
+  basis,
+  urgency = "Normal",
+) => ({
   id,
   title,
   description,
@@ -23,42 +54,215 @@ const action = (id, title, description, timing, owner, destination, basis, urgen
   urgency,
 });
 
-export const getEmployeePriorityActions = (employee, options = {}) => {
-  const records = Array.isArray(employee?.sourceRecords) ? employee.sourceRecords : [];
+export const getEmployeePriorityActions = (
+  employee,
+  options = {},
+) => {
+  const records = Array.isArray(employee?.sourceRecords)
+    ? employee.sourceRecords
+    : [];
+
   const rtw = getEmployeeReturnToWorkSummary(employee);
   const hasReturnRecord = rtw.hasReturnToWorkData;
   const beginRecord = recordWith(records, "leaveBeginDate");
-  const hasFutureBegin = beginRecord && validDate(beginRecord.leaveBeginDate) >= (options.asOfDate || new Date().toISOString().slice(0, 10));
-  const status = String(employee?.currentReportStatus || employee?.leaveStatus || "").toUpperCase();
-  const documentationPending = ["PE", "PENDING", "PEND"].includes(status) && !hasFutureBegin && populated(employee?.dateReceived);
+
+  const asOfDate =
+    validDate(options.asOfDate) ||
+    new Date().toISOString().slice(0, 10);
+
+  const daysUntilLeave = beginRecord
+    ? daysBetween(asOfDate, beginRecord.leaveBeginDate)
+    : null;
+
+  const hasFutureBegin =
+    daysUntilLeave !== null && daysUntilLeave >= 0;
+
+  const isPreparationWindow =
+    daysUntilLeave !== null &&
+    daysUntilLeave >= 0 &&
+    daysUntilLeave <= 3;
+
+  const status = String(
+    employee?.currentReportStatus ||
+      employee?.leaveStatus ||
+      employee?.claimStatus ||
+      "",
+  ).toUpperCase();
+
+  const documentationPending =
+    ["PE", "PENDING", "PEND"].includes(status) &&
+    populated(employee?.dateReceived);
 
   if (hasReturnRecord) {
     return [
-      action("rtw-confirm-record", "Confirm your return date", "Confirm your return date with Lincoln Financial and your manager.", "Before return", "Employee", MY_LINCOLN_URL, "Your return date is available.", "High"),
-      action("rtw-restore-access", "Activate your work systems", "Request access before returning and verify it on your first day.", "Approximately 3 days before return", "IT / ServiceNow", SERVICENOW_URL, "Your return date is available.", "High"),
-      action("rtw-manager-handoff", "Connect with your manager", "Plan work hand-back, calendar reset, priorities, and a manager check-in.", "Before return and first 30 days", "Manager", null, "Your return date supports planning.", "Normal"),
-    ];
-  }
-
-  if (hasFutureBegin) {
-    return [
-      action("preleave-confirm-intake", "Apply for leave", "Check your leave status and follow up with Lincoln Financial.", "Before leave begins", "Lincoln Financial", MY_LINCOLN_URL, `Leave begins ${beginRecord.leaveBeginDate}; confirm your details with Lincoln Financial.`, "High"),
-      action("preleave-business-handoff", "Complete the business handoff", "Confirm owners, escalation contacts, priorities, and manager coverage without medical details.", "Before leave begins", "Employee / Manager", null, `Leave start date is available from ${beginRecord.sourceSheet || "the source report"}.`, "Normal"),
-      action("preleave-delegations", "Configure Workday and Ramp delegations", "Set delegation owners and activation dates for the leave period.", "Before leave begins", "Employee", null, "Future leave start is present; delegation completion is not inferred.", "Normal"),
+      action(
+        "return-consider-extension",
+        "Decide whether you may need an extension",
+        "Review whether you expect to return on the currently planned date.",
+        "About 2 weeks before your expected return",
+        "Employee",
+        null,
+        "Your return information is available.",
+        "High",
+      ),
+      action(
+        "return-contact-lincoln",
+        "Contact Lincoln if you need an extension",
+        "Use MyLincoln Portal or contact Lincoln promptly if your return date may change.",
+        "As soon as you know your return date may change",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your return information is available.",
+        "High",
+      ),
+      action(
+        "return-confirm-date",
+        "Confirm your return date",
+        "Confirm your expected return date with Lincoln Financial and your manager.",
+        "Before your return",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your return date still needs confirmation.",
+        "High",
+      ),
     ];
   }
 
   if (documentationPending) {
     return [
-      action("documentation-check-portal", "Review Lincoln's messages", "Review messages and outstanding documentation instructions.", "Next step", "Employee", MY_LINCOLN_URL, `Your leave status is ${status}; review any requested documents.`, "High"),
-      action("documentation-confirm-deadline", "Confirm the certification deadline", "Confirm any deadline shown by Lincoln Financial.", "When shown by Lincoln", "Lincoln Financial", MY_LINCOLN_URL, "A pending leave status may require follow-up.", "High"),
-      action("documentation-receipt", "Confirm documentation receipt", "Submit or confirm receipt of any required documentation.", "After submission", "Lincoln Financial", MY_LINCOLN_URL, "Follow-up may be needed.", "Normal"),
+      action(
+        "documentation-review-messages",
+        "Review Lincoln’s messages",
+        "Check MyLincoln Portal and your email for documentation instructions.",
+        "Next step",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your leave is pending with Lincoln.",
+        "High",
+      ),
+      action(
+        "documentation-understand-request",
+        "Understand what is required",
+        "Review the forms, information, and deadline listed in Lincoln’s message.",
+        "When Lincoln sends the request",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your leave is pending with Lincoln.",
+        "High",
+      ),
+      action(
+        "documentation-submit",
+        "Submit your documentation",
+        "Submit the requested documentation by Lincoln’s deadline, usually within 15 calendar days.",
+        "By the deadline shown by Lincoln",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your leave is pending with Lincoln.",
+        "High",
+      ),
+      action(
+        "documentation-more-time",
+        "Contact Lincoln if you need more time",
+        "Contact Lincoln promptly if you may not be able to meet the documentation deadline.",
+        "Before the deadline",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your leave is pending with Lincoln.",
+        "High",
+      ),
+    ];
+  }
+
+  if (isPreparationWindow) {
+    return [
+      action(
+        "prepare-handoff",
+        "Complete your work handoff",
+        "Review priorities, coverage, and important contacts with your manager.",
+        "About 3 days before leave",
+        "Employee",
+        null,
+        "Your planned leave begins soon.",
+        "High",
+      ),
+      action(
+        "prepare-delegations",
+        "Set Workday and Ramp delegations",
+        "Confirm the correct people and activation dates for your delegations.",
+        "About 3 days before leave",
+        "Employee",
+        null,
+        "Your planned leave begins soon.",
+        "High",
+      ),
+      action(
+        "prepare-out-of-office",
+        "Prepare your out-of-office message",
+        "Add your leave dates and backup contact without including medical or claim details.",
+        "About 3 days before leave",
+        "Employee",
+        null,
+        "Your planned leave begins soon.",
+        "Normal",
+      ),
+    ];
+  }
+
+  if (hasFutureBegin) {
+    return [
+      action(
+        "apply-for-leave",
+        "Apply for leave",
+        "Apply through MyLincoln Portal or contact Lincoln Financial for help starting your request.",
+        "As soon as you know you may need leave",
+        "Employee",
+        MY_LINCOLN_URL,
+        "Your planned leave starts in the future.",
+        "High",
+      ),
+      action(
+        "tell-manager",
+        "Tell your manager",
+        "Share your expected leave start date with your manager. You do not need to provide medical details.",
+        "After starting your leave request",
+        "Employee",
+        null,
+        "Your planned leave starts in the future.",
+        "Normal",
+      ),
     ];
   }
 
   return [
-    action("fallback-portal", "Review Lincoln's messages", "Review your latest leave messages and next steps.", "Next step", "Lincoln Financial", MY_LINCOLN_URL, "Some leave details need confirmation.", "High"),
-    action("fallback-leave-ops", "Confirm your leave dates", "Ask Twilio Leave Operations to confirm your leave dates.", "Next step", "Twilio Leave Operations", null, "A leave date needs confirmation.", "Normal"),
-    action("fallback-handoff", "Review the business handoff", "Confirm owners, priorities, and escalation contacts with your manager without medical details.", "Next administrative step", "Employee / Manager", null, "A business handoff is useful while source dependencies remain incomplete.", "Normal"),
+    action(
+      "review-lincoln-messages",
+      "Review Lincoln’s messages",
+      "Check MyLincoln Portal and your email for your latest leave status and next steps.",
+      "Next step",
+      "Employee",
+      MY_LINCOLN_URL,
+      "Your next step still needs confirmation.",
+      "High",
+    ),
+    action(
+      "confirm-leave-dates",
+      "Confirm your leave dates",
+      "Contact Lincoln if your leave start date, expected return date, approval, or closure is unresolved.",
+      "Next step",
+      "Employee",
+      MY_LINCOLN_URL,
+      "One or more leave dates still need confirmation.",
+      "High",
+    ),
+    action(
+      "track-your-todos",
+      "Track your to-dos",
+      "Use Your Leave Journey to review the steps that apply to your leave.",
+      "As needed",
+      "Employee",
+      null,
+      "Your next step still needs confirmation.",
+      "Normal",
+    ),
   ];
 };
