@@ -734,247 +734,6 @@ function TabBar({ active, setActive }) {
   );
 }
 
-function Responsibility({ title, tone, items, contact }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-[#10172a] p-4">
-      <h4
-        className={`text-xs font-bold uppercase tracking-wider ${
-          tone === "cyan" ? "text-cyan-300" : "text-rose-300"
-        }`}
-      >
-        {title}
-      </h4>
-
-      <ul className="mt-3 space-y-2 text-sm text-slate-300">
-        {items.map((item) => (
-          <li key={item}>• {item}</li>
-        ))}
-      </ul>
-
-      <div className="mt-4 border-t border-slate-700/70 pt-3 text-xs text-slate-400">
-        {contact}
-      </div>
-    </div>
-  );
-}
-
-function TodosTab({ employee }) {
-  const [stage, setStage] = useState("all");
-  const [checked, setChecked] = useState({});
-
-  const toggle = (id) =>
-    setChecked((current) => ({ ...current, [id]: !current[id] }));
-
-  const leaveProductText = safeText(employee?.leaveProduct);
-  const stages = [
-    {
-      id: "pre",
-      title: "Stage 1: Pre-Leave Planning",
-      subtitle: "Milestone & Administrative Setup",
-      timing: "30–60 days prior",
-      tone: "cyan",
-      items: [
-        "File the formal leave intake with Lincoln Financial through MyLincoln Portal or 800-377-1568.",
-        leaveProductText
-          ? `Confirm the leave product shown on file: ${leaveProductText}.`
-          : "Leave product is not available in the source report.",
-        "Notify your manager and HRBP of the expected start date and business handoff timeline—no medical details needed.",
-        "Set Workday and Ramp delegations and prepare your out-of-office message.",
-      ],
-    },
-    {
-      id: "med",
-      title: "Stage 2: Medical Documentation",
-      subtitle: "Lincoln Financial Certification Tracking",
-      timing: "15 calendar-day deadline",
-      tone: "amber",
-      items: [
-        "Day 1: Confirm the intake acknowledgment reached your email.",
-        "Days 2–5: Watch for the specialist call and COM01/COM02 correspondence.",
-        "Upload complete certification by Day 15; confirm receipt in the portal.",
-        "If incomplete documents were submitted on Days 13–15, verify whether the one-time 7-day grace period applies.",
-      ],
-    },
-    {
-      id: "handoff",
-      title: "Stage 3: Three-Day Handoff",
-      subtitle: "Final Business Readiness",
-      timing: "3 days before leave",
-      tone: "violet",
-      items: [
-        "Confirm project owners, escalation contacts, and manager coverage.",
-        "Verify Workday and Ramp delegation activation dates.",
-        "Schedule out-of-office notifications without medical or claim details.",
-      ],
-    },
-    {
-      id: "return",
-      title: "Stage 4: Welcome Back & RTW",
-      subtitle: "Return-to-Work Readiness",
-      timing: "Before return",
-      tone: "green",
-      items: [
-        "Confirm Lincoln has your release to return, when required.",
-        "Coordinate access restoration, calendar reset, and a phased hand-back with your manager.",
-        "If workplace adjustments may help, use the optional workplace support section in Return to Work.",
-      ],
-    },
-  ];
-
-  const visible =
-    stage === "all" ? stages : stages.filter((item) => item.id === stage);
-
-  return (
-    <div className="space-y-5">
-      <Panel className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="font-serif text-xl font-bold">
-            📍 Interactive Leave Lifecycle Journey
-          </h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Filter the checklist by stage and mark completed tasks locally.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {[
-            ["all", "All Stages"],
-            ["pre", "1. Pre-Leave"],
-            ["med", "2. Med Cert"],
-            ["handoff", "3. Handoff"],
-            ["return", "4. RTW"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setStage(id)}
-              className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                stage === id
-                  ? "bg-rose-500 text-white"
-                  : "border border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </Panel>
-
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_.95fr]">
-        <div className="space-y-5">
-          {visible.map((item) => (
-            <Panel
-              key={item.id}
-              className={`border-l-4 p-5 ${
-                item.tone === "cyan"
-                  ? "border-l-cyan-400"
-                  : item.tone === "amber"
-                    ? "border-l-amber-400"
-                    : item.tone === "violet"
-                      ? "border-l-violet-400"
-                      : "border-l-emerald-400"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <Badge tone={item.tone}>{item.title}</Badge>
-                <span className="text-xs text-slate-400">
-                  ◷ {item.timing}
-                </span>
-              </div>
-
-              <h3 className="mt-4 text-base font-bold">{item.subtitle}</h3>
-
-              <div className="mt-3">
-                {item.items.map((text, index) => {
-                  const id = `${item.id}-${index}`;
-
-                  return (
-                    <CheckItem
-                      key={id}
-                      checked={Boolean(checked[id])}
-                      onChange={() => toggle(id)}
-                      accent={item.tone}
-                    >
-                      {text}
-                    </CheckItem>
-                  );
-                })}
-              </div>
-            </Panel>
-          ))}
-        </div>
-
-        <div className="space-y-5">
-          <Panel className="p-5">
-            <h3 className="font-serif text-lg font-bold">
-              ♟ Administration Responsibility Matrix
-            </h3>
-            <p className="mt-1 text-xs text-slate-400">
-              Who owns each part of your leave experience.
-            </p>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-              <Responsibility
-                title="Lincoln Financial"
-                tone="cyan"
-                items={[
-                  "Claim intake and certification review",
-                  "Eligibility and claim decisions",
-                  "Disability benefit calculation",
-                  "Case manager communications",
-                ]}
-                contact="800-377-1568 · MyLincoln Portal"
-              />
-
-              <Responsibility
-                title="Twilio Internal Ops"
-                tone="pink"
-                items={[
-                  "Salary top-up on payroll",
-                  "Workday leave-status updates",
-                  "Ramp and system access delegation",
-                  "RTW and accommodation coordination",
-                ]}
-                contact="leave-ops@twilio.com"
-              />
-            </div>
-          </Panel>
-
-          <StateStatutoryCard employee={employee} />
-
-          <Panel className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="font-serif text-lg font-bold">Profile Snapshot</h3>
-              <Badge tone="green">Verified</Badge>
-            </div>
-
-            <dl className="mt-4 divide-y divide-slate-700/70 text-sm">
-              {[
-                ["Leave type", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],
-                ["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],
-                [
-                  "Plan dates",
-                  `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`,
-                ],
-                ["Annual base salary", "Pay information is not available."],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-start justify-between gap-6 py-3"
-                >
-                  <dt className="text-slate-400">{label}</dt>
-                  <dd className="text-right font-semibold text-slate-100">
-                    {value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleItem }) {
   const panelId = `lifecycle-panel-${stage.id}`;
   const completed = stage.items.filter((item) => checked[item.id]).length;
@@ -1000,7 +759,7 @@ function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleIte
           <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
             <span className="text-sm font-bold">{stage.number}. {stage.title}</span>
             <span className="text-xs text-slate-400">{stage.timeframe}</span>
-            {stage.status === "suggested" && <Badge tone="green">Suggested from your current record</Badge>}
+            {stage.status === "suggested" && <Badge tone="green">Recommended for you</Badge>}
           </span>
           <span className="flex shrink-0 items-center gap-3 text-xs text-slate-400">
             <span>{completed} of {stage.items.length} reviewed</span>
@@ -1057,17 +816,16 @@ function LifecycleOverview({ employee }) {
           <div><h2 className="font-serif text-2xl font-bold">Your Leave Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage and track your next steps.</p></div>
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setAllStages(true)} className="app-button app-button--secondary">Expand all</button><button type="button" onClick={() => setAllStages(false)} className="app-button app-button--tertiary">Collapse all</button></div>
         </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-4" aria-label="Lifecycle stages">
-          {lifecycle.stages.map((stage) => <button type="button" key={stage.id} onClick={() => focusStage(stage.id)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${stage.status === "suggested" ? "border-emerald-400/70 bg-emerald-400/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal">Suggested stage</span>}</button>)}
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Lifecycle stages">
+          {lifecycle.stages.map((stage) => <button type="button" key={stage.id} onClick={() => focusStage(stage.id)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${stage.status === "suggested" ? "border-emerald-400/70 bg-emerald-400/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal">Recommended stage</span>}</button>)}
         </div>
         {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified. Stage 1 is open for orientation.</p>}
         <div className="mt-4 space-y-3">{lifecycle.stages.map((stage) => <LifecycleAccordion key={stage.id} stage={stage} isOpen={openStages.has(stage.id)} checked={checked} onToggleStage={toggleStage} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />)}</div>
-        <p className="mt-4 text-xs text-slate-400">Checklist selections are for this demo session only and do not update Workday or Lincoln Financial.</p>
+        <p className="mt-4 text-xs text-slate-400">Your checked items are saved only for this session and do not update Workday or Lincoln Financial.</p>
       </Panel>
       <div className="space-y-5">
-        <Panel className="p-5"><h3 className="font-serif text-lg font-bold">Administration Responsibility Matrix</h3><p className="mt-1 text-xs text-slate-400">Who owns each part of your leave experience.</p><div className="mt-4 grid gap-4 md:grid-cols-3"><Responsibility title="Lincoln Financial" tone="cyan" items={["Claim intake and certification review", "Case manager communications", "Authorized documentation process"]} contact="800-377-1568 · MyLincoln Portal" /><Responsibility title="Twilio Leave Operations / Payroll" tone="pink" items={["Salary top-up on payroll", "Workday leave-status updates", "RTW and accommodation coordination"]} contact="leave-ops@twilio.com" /><Responsibility title="Employee / Manager" tone="cyan" items={["Business handoff and priorities", "Calendar and delegation planning", "Return-to-work reintegration"]} contact="Coordinate through your manager and Twilio Leave Operations" /></div></Panel>
         <StateStatutoryCard employee={employee} />
-        <Panel className="p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-serif text-lg font-bold">Profile Snapshot</h3><Badge tone="green">Verified</Badge></div><dl className="mt-4 divide-y divide-slate-700/70 text-sm">{[["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],["Plan dates", `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`],["Annual base salary", "Pay information is not available in this source report."]].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-6 py-3"><dt className="text-slate-400">{label}</dt><dd className="text-right font-semibold text-slate-100">{value}</dd></div>)}</dl></Panel>
+        <Panel className="p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-serif text-lg font-bold">Profile Snapshot</h3><Badge tone="green">Verified</Badge></div><dl className="mt-4 divide-y divide-slate-700/70 text-sm">{[["Leave type", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],["Plan dates", `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`],["Annual base salary", "Pay information is not available."]].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-6 py-3"><dt className="text-slate-400">{label}</dt><dd className="text-right font-semibold text-slate-100">{value}</dd></div>)}</dl></Panel>
       </div>
     </div>
   );
@@ -1864,7 +1622,7 @@ function ChatTab({ employee }) {
     }
 
     if (q.includes("next") || q.includes("do")) {
-      return `Your active stage is ${activeStage}. Start by checking the Lifecycle To-Dos tab, reviewing any new Lincoln message, and confirming that your manager and HRBP know the timing without sharing medical details.`;
+      return `Your active stage is ${activeStage}. Start by checking the Lifecycle To-Dos tab, reviewing any new Lincoln message, and confirming the timing with your manager without sharing medical details.`;
     }
 
     if (q.includes("return") || q.includes("rtw")) {

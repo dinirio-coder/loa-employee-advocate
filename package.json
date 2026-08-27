@@ -10,6 +10,7 @@
     "test:profiles": "node scripts/validateEmbeddedProfiles.mjs",
     "test:employee-language": "node scripts/validateEmployeeLanguage.mjs",
     "test:action-plan": "node scripts/validateActionPlan.mjs",
+    "test:lifecycle-ui": "node scripts/validateLifecycleUi.mjs",
     "test:rtw": "node scripts/validateRtw.mjs",
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",
