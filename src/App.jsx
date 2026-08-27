@@ -20,6 +20,7 @@ import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
 import { getEmployeePayTimeline } from "./data/payTimelineUtils";
 import { getStateBenefitCoordination } from "./data/stateBenefitUtils";
+import { getEmployeeLifecycleAlerts } from "./data/lifecycleAlertUtils";
 import {
   filterSupportResources,
   getSupportResourceCategories,
@@ -594,8 +595,8 @@ function SummaryCards({ employee }) {
     {
       label: "Next Milestone",
       value: milestone.hasMilestone ? milestone.label : TEXT_NOT_AVAILABLE,
-      note: milestone.hasMilestone ? milestone.date : TEXT_NOT_AVAILABLE,
-      details: milestone.hasMilestone ? `${milestone.timing} · Owner: ${milestone.owner} · ${milestone.basis}` : milestone.basis,
+      note: milestone.date || "Date to be confirmed",
+      details: milestone.hasMilestone ? `${milestone.timing}${milestone.status === "overdue" ? " · Overdue" : ""} · ${milestone.basis}` : milestone.basis,
       icon: "✎",
       color: "amber",
     },
@@ -702,6 +703,12 @@ function PriorityActions({ employee }) {
       </div>
     </Panel>
   );
+}
+
+function LifecycleAlerts({ employee }) {
+  const alerts = getEmployeeLifecycleAlerts(employee);
+  if (!alerts.length) return null;
+  return <section aria-labelledby="leave-alerts-heading" className="space-y-3"><h2 id="leave-alerts-heading" className="font-serif text-2xl font-bold">Important leave updates</h2>{alerts.map((alert) => <Panel key={alert.id} className={`border-l-4 ${alert.severity === "high" ? "border-l-rose-500" : "border-l-amber-400"} p-5`}><h3 className="text-base font-bold">{alert.title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{alert.description}</p><a className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#1B66EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#3D7FF2]" href={alert.destination} target="_blank" rel="noreferrer">{alert.actionLabel}<span className="ml-2" aria-hidden="true">↗</span></a></Panel>)}</section>;
 }
 
 function TabBar({ active, setActive }) {
@@ -1793,6 +1800,7 @@ export default function App() {
           </div>
         )}
         <PriorityActions employee={employee} />
+        <LifecycleAlerts employee={employee} />
         <SummaryCards employee={employee} />
         <TabBar active={activeTab} setActive={setActiveTab} />
         {content}

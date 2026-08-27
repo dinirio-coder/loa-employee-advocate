@@ -92,7 +92,7 @@ export const getLifecycleStageDecision = (employee, { asOfDate } = {}) => {
   const expectedReturnOverdue = Boolean(expectedReturn && !actualReturn && dayNumber(expectedReturn) < dayNumber(normalizedAsOfDate));
   const pendingNearReturn = Boolean(pending && expectedReturn && daysUntilExpectedReturn >= 0 && daysUntilExpectedReturn <= 14);
   const pendingAfterReturn = Boolean(pending && actualReturn && dayNumber(actualReturn) < dayNumber(normalizedAsOfDate));
-  const flags = { expectedReturnOverdue, pendingNearReturn, pendingAfterReturn, needsDateConfirmation };
+  const flags = { expectedReturnOverdue, pendingNearReturn, pendingAfterReturn, needsDateConfirmation, futureActualReturn };
   let stageId = null;
   let reason = "There is not enough reliable date information to recommend a lifecycle stage.";
   if (needsDateConfirmation) reason = "Conflicting or overlapping leave information needs confirmation before a stage can be recommended.";
