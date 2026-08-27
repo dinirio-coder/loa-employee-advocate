@@ -28,6 +28,8 @@
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",
     "test:pay-timeline": "node scripts/validatePayTimeline.mjs",
+    "test:pay-schedule": "node scripts/validatePaySchedule.mjs",
+    "test:pay-schedule-ui": "node scripts/validatePayScheduleUi.mjs",
     "test:state-benefits": "node scripts/validateStateBenefits.mjs",
     "generate:state-benefits": "node scripts/rebuildStateBenefitRules.mjs",
     "test:resources": "node scripts/validateResources.mjs",
