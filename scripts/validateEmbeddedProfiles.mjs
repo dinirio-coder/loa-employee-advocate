@@ -137,7 +137,7 @@ assert(edgarPay.payableCalculatedSalaryAmount === 3013.82, "Edgar pay selector r
 const noPayProfile = getVerifiedEmployeeProfile("Goofy", "N/A", "100005");
 const noPay = getEmployeePaySummary(noPayProfile);
 assert(noPay.hasPayData === false, "No-pay employee should not have pay data.");
-assert(PAY_UNAVAILABLE_MESSAGE === "Pay information is not available in this source report.", "Unavailable-pay message changed unexpectedly.");
+assert(PAY_UNAVAILABLE_MESSAGE === "Pay information is not available.", "Unavailable-pay message changed unexpectedly.");
 
 const durationCases = [
   ["Edgar", "Melville", "3459280", { durationDays: 154, durationWeeks: 22, startDate: "2025-11-17", endDate: "2026-04-19", endDateLabel: "Certified Through", leaveType: "BND", leaveReason: "NEWBORN - MATERNITY", sourceSheet: "Weekly Leave Intermittent Report", calculationMethod: "Inclusive calendar days" }],

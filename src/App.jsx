@@ -29,7 +29,7 @@ const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
 );
 
-const TEXT_NOT_AVAILABLE = "Not available in source report";
+const TEXT_NOT_AVAILABLE = "Not available";
 
 const safeText = (value, fallback = "") => {
   const text = String(value ?? "").trim();
@@ -602,7 +602,7 @@ function SummaryCards({ employee }) {
     {
       label: "Est. Biweekly Base Pay",
       value: pay.hasPayData ? money(pay.biweeklySalary) : PAY_UNAVAILABLE_MESSAGE,
-      note: pay.hasPayData ? "Verified ATP salary input" : PAY_UNAVAILABLE_MESSAGE,
+      note: pay.hasPayData ? "Verified salary information" : PAY_UNAVAILABLE_MESSAGE,
       icon: "▦",
       color: "green",
     },
@@ -644,32 +644,13 @@ function SummaryCards({ employee }) {
               </p>
               <p className={`mt-2 truncate text-xs ${text}`}>{card.note}</p>
               {card.context && <p className={`mt-1 truncate text-xs ${text}`}>{card.context}</p>}
-              {card.statusDetails && (
-                <details className="mt-2 text-xs text-slate-400">
-                  <summary className="cursor-pointer font-semibold text-slate-300">Source details</summary>
-                  <dl className="mt-2 space-y-1">
-                    {[
-                      ["Raw status code", card.statusDetails.rawCode],
-                      ["Official status", card.statusDetails.officialDescription],
-                      ["Reason code", card.statusDetails.reasonCode],
-                    ].filter(([, value]) => value).map(([label, value]) => (
-                      <div key={label} className="flex justify-between gap-3">
-                        <dt>{label}</dt>
-                        <dd className="text-right text-slate-300">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </details>
-              )}
               {card.details && card.label === "Total Planned Duration" && (
                 <details className="mt-2 text-xs text-slate-400">
                   <summary className="cursor-pointer font-semibold text-slate-300">Duration details</summary>
                   <dl className="mt-2 space-y-1">
                     {[
-                      ["Source report", card.details.sourceSheet],
                       ["Begin date", card.details.startDate],
                       [card.details.endDateLabel, card.details.endDate],
-                      ["Calculation", card.details.calculationMethod],
                       ["Leave type", card.details.leaveType],
                       ["Leave reason", card.details.leaveReason],
                       ["Current status", card.details.status],
@@ -702,7 +683,7 @@ function PriorityActions({ employee }) {
   return (
     <Panel className="p-5 sm:p-6">
       <h2 className="font-serif text-2xl font-bold">Your Three Priority Actions</h2>
-      <p className="mt-2 text-sm text-slate-400">The most important administrative steps based on your current leave record.</p>
+            <p className="mt-2 text-sm text-slate-400">The most important steps based on your current leave information.</p>
       <div className="mt-5 grid gap-3 lg:grid-cols-3">
         {actions.map((item, index) => (
           <article key={item.id} className="flex min-w-0 flex-col rounded-xl border border-slate-700 bg-[#10172a] p-4">
@@ -712,11 +693,10 @@ function PriorityActions({ employee }) {
             </div>
             <p className="mt-3 text-sm leading-5 text-slate-300">{item.description}</p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full border border-[#38425E] px-2.5 py-1 text-[#9AA0B4]">{item.owner}</span>
               <span className="text-[#9AA0B4]">{item.timing}</span>
             </div>
             <p className="mt-3 text-xs leading-5 text-[#656E87]">{item.basis}</p>
-            {item.destination && <a className="mt-auto inline-flex pt-4 text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]" href={item.destination} target="_blank" rel="noreferrer">Open authorized process <span className="ml-1" aria-hidden="true">↗</span></a>}
+            {item.destination && <a className="mt-auto inline-flex pt-4 text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]" href={item.destination} target="_blank" rel="noreferrer">Open next step <span className="ml-1" aria-hidden="true">↗</span></a>}
           </article>
         ))}
       </div>
@@ -969,13 +949,13 @@ function TodosTab({ employee }) {
 
             <dl className="mt-4 divide-y divide-slate-700/70 text-sm">
               {[
-                ["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],
+                ["Leave type", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],
                 ["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],
                 [
                   "Plan dates",
                   `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`,
                 ],
-                ["Annual base salary", "Pay information is not available in this source report."],
+                ["Annual base salary", "Pay information is not available."],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -1038,11 +1018,8 @@ function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleIte
               <CheckItem key={item.id} checked={Boolean(checked[item.id])} onChange={() => onToggleItem(item.id)}>
                 <span className="block font-semibold">{item.title}</span>
                 <span className="mt-1 block text-slate-300">{item.description}</span>
-                <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-cyan-300">
-                  <span>Owner: {item.owner}</span><span>{item.timing}</span>
-                </span>
-                {item.dependency && <span className="mt-1 block text-xs text-amber-300">Dependency: {item.dependency}</span>}
-                {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open authorized process <span aria-hidden="true">↗</span></a>}
+                <span className="mt-2 block text-xs text-cyan-300">{item.timing}</span>
+                {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open next step <span aria-hidden="true">↗</span></a>}
               </CheckItem>
             ))}
           </div>
@@ -1077,13 +1054,13 @@ function LifecycleOverview({ employee }) {
     <div className="space-y-5">
       <Panel className="p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><h2 className="font-serif text-2xl font-bold">Interactive Leave Lifecycle Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage, track your administrative steps, and see who owns the next action.</p></div>
+          <div><h2 className="font-serif text-2xl font-bold">Your Leave Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage and track your next steps.</p></div>
           <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setAllStages(true)} className="app-button app-button--secondary">Expand all</button><button type="button" onClick={() => setAllStages(false)} className="app-button app-button--tertiary">Collapse all</button></div>
         </div>
         <div className="mt-5 grid gap-2 sm:grid-cols-4" aria-label="Lifecycle stages">
           {lifecycle.stages.map((stage) => <button type="button" key={stage.id} onClick={() => focusStage(stage.id)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${stage.status === "suggested" ? "border-emerald-400/70 bg-emerald-400/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal">Suggested stage</span>}</button>)}
         </div>
-        {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified from the source record. Stage 1 is open for orientation.</p>}
+        {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified. Stage 1 is open for orientation.</p>}
         <div className="mt-4 space-y-3">{lifecycle.stages.map((stage) => <LifecycleAccordion key={stage.id} stage={stage} isOpen={openStages.has(stage.id)} checked={checked} onToggleStage={toggleStage} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />)}</div>
         <p className="mt-4 text-xs text-slate-400">Checklist selections are for this demo session only and do not update Workday or Lincoln Financial.</p>
       </Panel>
@@ -1125,7 +1102,7 @@ function PayTimelineTab({ employee }) {
       </Panel>
 
       <section aria-labelledby="pay-overview-heading">
-        <div className="mb-3 flex items-end justify-between gap-3"><h3 id="pay-overview-heading" className="font-serif text-2xl font-bold">Pay overview</h3><span className="text-xs text-slate-400">Source values and estimates are labeled</span></div>
+        <div className="mb-3 flex items-end justify-between gap-3"><h3 id="pay-overview-heading" className="font-serif text-2xl font-bold">Pay overview</h3><span className="text-xs text-slate-400">Your pay information and estimates</span></div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map(([label, value, kind, explanation]) => <Panel key={label} className="p-5"><dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-3 text-xl font-bold">{displayMoney(value)}</dd>{kind && <div className="mt-2 text-xs font-semibold text-[#72A5FF]">{kind}</div>}<p className="mt-3 text-xs leading-5 text-slate-400">{explanation}</p></Panel>)}
         </div>
@@ -1202,7 +1179,7 @@ function PayTab({ employee }) {
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Transparent estimates based on {employee.firstName}’s salary
+            Transparent estimates based on your salary
             record. Taxes, deductions, eligibility, and agency awards can
             change final pay.
           </p>
@@ -1218,29 +1195,29 @@ function PayTab({ employee }) {
               highlight
             />
             <PayRow
-              label="ATP calculated salary amount (source)"
-              value={pay.payableCalculatedSalaryAmount == null ? "Not available in source report" : money(pay.payableCalculatedSalaryAmount)}
+              label="Calculated salary amount"
+              value={pay.payableCalculatedSalaryAmount == null ? "Not available" : money(pay.payableCalculatedSalaryAmount)}
             />
-            <PayRow label="ATP product (source)" value={safeText(pay.product, "Not available in source report")} />
-            <PayRow label="ATP pay code (source)" value={safeText(pay.payCode, "Not available in source report")} />
+            <PayRow label="Leave type" value={safeText(pay.product, "Not available")} />
+            <PayRow label="Pay category" value={safeText(pay.payCode, "Not available")} />
             <PayRow
               label="ATP benefit gross amount (source)"
-              value={pay.benefitGrossAmount == null ? "Not available in source report" : money(pay.benefitGrossAmount)}
+              value={pay.benefitGrossAmount == null ? "Not available" : money(pay.benefitGrossAmount)}
             />
             <PayRow
               label="ATP total offsets (source)"
-              value={pay.totalOffsets == null ? "Not available in source report" : money(pay.totalOffsets)}
+              value={pay.totalOffsets == null ? "Not available" : money(pay.totalOffsets)}
             />
             <PayRow
               label="ATP payable benefit percentage (source)"
-              value={pay.payableBenefitPercentage == null ? "Not available in source report" : `${pay.payableBenefitPercentage}%`}
+              value={pay.payableBenefitPercentage == null ? "Not available" : `${pay.payableBenefitPercentage}%`}
             />
             <PayRow
               label="ATP pay period (source)"
               value={pay.payPeriodFromDate && pay.payPeriodThroughDate ? `${pay.payPeriodFromDate} — ${pay.payPeriodThroughDate}` : "Not available in source report"}
             />
             <PayRow
-              label="Estimated daily base rate"
+              label="Estimated daily pay"
               value={money(daily)}
             />
           </dl>
@@ -1389,7 +1366,7 @@ function StateStatutoryCard({ employee }) {
         <PayRow label="Covered category" value={stateBenefit.category || TEXT_NOT_AVAILABLE} />
         <PayRow label="Available family / medical duration" value={program ? `${program.familyLeaveWeeks ?? TEXT_NOT_AVAILABLE} / ${program.medicalLeaveWeeks ?? TEXT_NOT_AVAILABLE} weeks` : TEXT_NOT_AVAILABLE} />
         <PayRow label="Eligibility guidance" value={program?.eligibilityDescription || "Verify with the state agency; no eligibility determination is inferred."} />
-        <PayRow label="Application owner" value={program?.applicationOwner || TEXT_NOT_AVAILABLE} />
+        <PayRow label="Where to apply" value={program?.applicationOwner || TEXT_NOT_AVAILABLE} />
         <PayRow label="Lincoln coordination" value={program?.lincolnCoordination || TEXT_NOT_AVAILABLE} />
         <PayRow label="Award letter recipient" value={program?.awardLetterRecipient || TEXT_NOT_AVAILABLE} />
       </dl>
@@ -1664,7 +1641,7 @@ function ReturnToWorkTab({ employee }) {
 
       <Panel className="p-6">
         <Badge tone="cyan">General planning guidance</Badge>
-        <h2 className="mt-4 font-serif text-2xl font-bold">RTW Readiness Checklist</h2>
+          <h2 className="mt-4 font-serif text-2xl font-bold">Return to Work Checklist</h2>
         <p className="mt-2 text-sm text-slate-400">Tasks stay unchecked until you mark them locally. No completion is inferred from the source record.</p>
         <div className="mt-5 space-y-3">{checklist.map((group) => <AccordionGroup key={group.id} {...group} checked={checked} onToggle={toggle} />)}</div>
       </Panel>
@@ -1678,7 +1655,7 @@ function ReturnToWorkTab({ employee }) {
         </Panel>
         <Panel className="p-6">
           <Badge tone="violet">IT / ServiceNow</Badge>
-          <h2 className="mt-4 font-serif text-xl font-bold">Access and license recovery</h2>
+          <h2 className="mt-4 font-serif text-xl font-bold">Activate your work systems</h2>
           <p className="mt-3 text-sm leading-6 text-slate-300">As general planning guidance, begin an access reactivation request approximately three days before a planned return. This record does not confirm that access was disabled.</p>
           <a className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-3 text-sm font-bold text-white hover:border-cyan-300" href={SERVICENOW_URL} target="_blank" rel="noreferrer">Route to ServiceNow <span className="ml-2" aria-hidden="true">↗</span></a>
         </Panel>
@@ -1686,7 +1663,7 @@ function ReturnToWorkTab({ employee }) {
 
       <Panel className="p-6">
         <Badge tone="pink">Manager reintegration</Badge>
-        <h2 className="mt-4 font-serif text-xl font-bold">Plan the return conversation</h2>
+          <h2 className="mt-4 font-serif text-xl font-bold">Connect with your manager</h2>
         <p className="mt-3 text-sm leading-6 text-slate-300">Discuss work hand-back, calendar reset, priority alignment, and a manager check-in. Where applicable, discuss phased reintegration options with your manager; this tool does not promise or determine a phased return.</p>
       </Panel>
 

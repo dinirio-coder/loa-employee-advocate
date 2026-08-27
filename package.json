@@ -8,6 +8,7 @@
     "test:identity": "node scripts/validateEmbeddedIdentity.mjs",
     "test:status": "node scripts/validateStatus.mjs",
     "test:profiles": "node scripts/validateEmbeddedProfiles.mjs",
+    "test:employee-language": "node scripts/validateEmployeeLanguage.mjs",
     "test:rtw": "node scripts/validateRtw.mjs",
     "test:dashboard": "node scripts/validateDashboardPlan.mjs",
     "test:lifecycle": "node scripts/validateLifecycle.mjs",

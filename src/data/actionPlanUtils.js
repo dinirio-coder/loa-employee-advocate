@@ -34,15 +34,15 @@ export const getEmployeePriorityActions = (employee, options = {}) => {
 
   if (hasReturnRecord) {
     return [
-      action("rtw-confirm-record", "Confirm the recorded return date", "Align the source-record date with Lincoln Financial and your manager through the authorized process.", "Before return", "Employee", MY_LINCOLN_URL, `${rtw.controllingDateLabel} is available from ${rtw.sourceSheet || "the source report"}.`, "High"),
-      action("rtw-restore-access", "Prepare system access", "Request IT or license reactivation before returning and verify access on the first day.", "Approximately 3 days before return", "IT / ServiceNow", SERVICENOW_URL, "A source-backed RTW date is available; access status is not inferred.", "High"),
-      action("rtw-manager-handoff", "Coordinate manager reintegration", "Plan work hand-back, calendar reset, priorities, and a manager check-in.", "Before return and first 30 days", "Manager", null, "A source-backed RTW date supports administrative reintegration planning.", "Normal"),
+      action("rtw-confirm-record", "Confirm your return date", "Confirm your return date with Lincoln Financial and your manager.", "Before return", "Employee", MY_LINCOLN_URL, "Your return date is available.", "High"),
+      action("rtw-restore-access", "Activate your work systems", "Request access before returning and verify it on your first day.", "Approximately 3 days before return", "IT / ServiceNow", SERVICENOW_URL, "Your return date is available.", "High"),
+      action("rtw-manager-handoff", "Connect with your manager", "Plan work hand-back, calendar reset, priorities, and a manager check-in.", "Before return and first 30 days", "Manager", null, "Your return date supports planning.", "Normal"),
     ];
   }
 
   if (hasFutureBegin) {
     return [
-      action("preleave-confirm-intake", "Confirm Lincoln intake status", "Check the recorded leave status and follow up through the authorized Lincoln process.", "Before leave begins", "Lincoln Financial", MY_LINCOLN_URL, `Leave begins ${beginRecord.leaveBeginDate} in ${beginRecord.sourceSheet || "the source report"}; intake details should be confirmed there.`, "High"),
+      action("preleave-confirm-intake", "Apply for leave", "Check your leave status and follow up with Lincoln Financial.", "Before leave begins", "Lincoln Financial", MY_LINCOLN_URL, `Leave begins ${beginRecord.leaveBeginDate}; confirm your details with Lincoln Financial.`, "High"),
       action("preleave-business-handoff", "Complete the business handoff", "Confirm owners, escalation contacts, priorities, and manager coverage without medical details.", "Before leave begins", "Employee / Manager", null, `Leave start date is available from ${beginRecord.sourceSheet || "the source report"}.`, "Normal"),
       action("preleave-delegations", "Configure Workday and Ramp delegations", "Set delegation owners and activation dates for the leave period.", "Before leave begins", "Employee", null, "Future leave start is present; delegation completion is not inferred.", "Normal"),
     ];
@@ -50,15 +50,15 @@ export const getEmployeePriorityActions = (employee, options = {}) => {
 
   if (documentationPending) {
     return [
-      action("documentation-check-portal", "Check MyLincoln Portal", "Review authorized messages and outstanding documentation instructions.", "Next administrative step", "Employee", MY_LINCOLN_URL, `Source status is ${status}; documentation requirements are not determined here.`, "High"),
-      action("documentation-confirm-deadline", "Confirm the certification deadline", "Use the authorized process to confirm any controlling deadline shown in the source record.", "As shown in the source record", "Lincoln Financial", MY_LINCOLN_URL, "A pending source status is present; no deadline is invented when it is unavailable.", "High"),
-      action("documentation-receipt", "Confirm documentation receipt", "Submit or confirm receipt of required documentation only through the authorized process.", "After submission", "Lincoln Financial", MY_LINCOLN_URL, "Source status indicates follow-up may be needed; no completion is inferred.", "Normal"),
+      action("documentation-check-portal", "Review Lincoln's messages", "Review messages and outstanding documentation instructions.", "Next step", "Employee", MY_LINCOLN_URL, `Your leave status is ${status}; review any requested documents.`, "High"),
+      action("documentation-confirm-deadline", "Confirm the certification deadline", "Confirm any deadline shown by Lincoln Financial.", "When shown by Lincoln", "Lincoln Financial", MY_LINCOLN_URL, "A pending leave status may require follow-up.", "High"),
+      action("documentation-receipt", "Confirm documentation receipt", "Submit or confirm receipt of any required documentation.", "After submission", "Lincoln Financial", MY_LINCOLN_URL, "Follow-up may be needed.", "Normal"),
     ];
   }
 
   return [
-    action("fallback-portal", "Check MyLincoln Portal", "Review the latest authorized leave messages and recorded actions.", "Next administrative step", "Lincoln Financial", MY_LINCOLN_URL, "Operational status or dates are incomplete in the source report.", "High"),
-    action("fallback-leave-ops", "Confirm leave dates", "Ask Twilio Leave Operations to confirm the administrative dates available for your record.", "Next administrative step", "Twilio Leave Operations", null, "A reliable operational date is missing from the source report.", "Normal"),
+    action("fallback-portal", "Review Lincoln's messages", "Review your latest leave messages and next steps.", "Next step", "Lincoln Financial", MY_LINCOLN_URL, "Some leave details need confirmation.", "High"),
+    action("fallback-leave-ops", "Confirm your leave dates", "Ask Twilio Leave Operations to confirm your leave dates.", "Next step", "Twilio Leave Operations", null, "A leave date needs confirmation.", "Normal"),
     action("fallback-handoff", "Review the business handoff", "Confirm owners, priorities, and escalation contacts with your manager without medical details.", "Next administrative step", "Employee / Manager", null, "A business handoff is useful while source dependencies remain incomplete.", "Normal"),
   ];
 };

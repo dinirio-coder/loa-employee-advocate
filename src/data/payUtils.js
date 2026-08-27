@@ -1,5 +1,5 @@
 export const PAY_UNAVAILABLE_MESSAGE =
-  "Pay information is not available in this source report.";
+  "Pay information is not available.";
 
 export const getEmployeePaySummary = (employee) => {
   const biweeklySalary = employee?.biweeklySalary ?? null;
