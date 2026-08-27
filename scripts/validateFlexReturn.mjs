@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import { DEMO_SCENARIOS } from "../src/data/demoScenarios.js";
+import { getEmployeeReturnToWorkExperience } from "../src/data/returnToWorkExperience.js";
+
+const options = { asOfDate: "2026-08-27" };
+const leave = (durationDays) => ({ sourceRecords: [{ leaveBeginDate: "2026-01-01", leaveEndDate: new Date(Date.parse("2026-01-01T00:00:00Z") + (durationDays - 1) * 86400000).toISOString().slice(0, 10), estimatedRTW: new Date(Date.parse("2026-01-01T00:00:00Z") + (durationDays - 1) * 86400000).toISOString().slice(0, 10) }] });
+assert.equal(getEmployeeReturnToWorkExperience(leave(83), options).flexReturn.show, false);
+assert.equal(getEmployeeReturnToWorkExperience(leave(83), options).flexReturn.learnMoreUrl, null);
+assert.equal(getEmployeeReturnToWorkExperience(leave(84), options).flexReturn.show, true);
+assert.equal(getEmployeeReturnToWorkExperience(leave(84), options).flexReturn.learnMoreUrl, "https://switchboard.twilio.com/sites/total-rewards-benefits-compensation-global-mobility/SitePageModern/51097/global-flexible-return-from-leave-program");
+assert.equal(getEmployeeReturnToWorkExperience(leave(84), options).flexReturn.message.startsWith("You may qualify"), true);
+assert.equal(getEmployeeReturnToWorkExperience(leave(85), options).flexReturn.show, true);
+assert.equal(getEmployeeReturnToWorkExperience(leave(85), options).flexReturn.learnMoreUrl, "https://switchboard.twilio.com/sites/total-rewards-benefits-compensation-global-mobility/SitePageModern/51097/global-flexible-return-from-leave-program");
+assert.equal(getEmployeeReturnToWorkExperience({ sourceRecords: [{ leaveBeginDate: "2026-01-01", leaveEndDate: "2026-03-25", estimatedRTW: "2026-03-25" }, { leaveBeginDate: "2026-04-01", leaveEndDate: "2026-06-30", estimatedRTW: "2026-06-30" }] }, options).flexReturn.show, false);
+assert.equal(getEmployeeReturnToWorkExperience({ sourceRecords: [{ durationDays: "100", estimatedRTW: "2026-06-30" }] }, options).flexReturn.show, false);
+assert.equal(getEmployeeReturnToWorkExperience(DEMO_SCENARIOS.missingDates, options).flexReturn.show, false);
+assert.equal(getEmployeeReturnToWorkExperience(DEMO_SCENARIOS.overlappingRecords, options).flexReturn.show, false);
+assert.equal(getEmployeeReturnToWorkExperience(DEMO_SCENARIOS.endBeforeStart, options).flexReturn.show, false);
+for (const scenario of [DEMO_SCENARIOS.overlappingRecords, DEMO_SCENARIOS.missingDates, DEMO_SCENARIOS.endBeforeStart]) assert.equal(getEmployeeReturnToWorkExperience(scenario, options).flexReturn.learnMoreUrl, null);
+assert.doesNotMatch(JSON.stringify(getEmployeeReturnToWorkExperience(leave(84), options)), /eligible|approved|guaranteed|entitled/i);
+console.log("FlexReturn threshold validation passed.");

@@ -11,8 +11,6 @@ import { getEmployeeDurationSummary } from "./data/durationUtils";
 import { getVerifiedEmployeeProfile } from "./data/verifiedEmployeeProfile";
 import {
   formatReturnToWorkDate,
-  getEmployeeReturnToWorkSummary,
-  RTW_NOT_AVAILABLE,
 } from "./data/rtwUtils";
 import { getEmployeePriorityActions } from "./data/actionPlanUtils";
 import { getEmployeeStatusSummary } from "./data/statusUtils";
@@ -21,6 +19,7 @@ import { getEmployeeLifecycle } from "./data/lifecycleUtils";
 import { getEmployeePayTimeline } from "./data/payTimelineUtils";
 import { getStateBenefitCoordination } from "./data/stateBenefitUtils";
 import { getEmployeeLifecycleAlerts } from "./data/lifecycleAlertUtils";
+import { getEmployeeReturnToWorkExperience } from "./data/returnToWorkExperience";
 import {
   filterSupportResources,
   getSupportResourceCategories,
@@ -1290,148 +1289,29 @@ function PlanTab({ employee }) {
 }
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
-const SERVICENOW_URL = "https://twilio.service-now.com/";
-
-function AccordionGroup({ id, title, timing, tasks, checked, onToggle }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="rounded-xl border border-slate-700 bg-[#10172a]">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-4 p-4 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-      >
-        <span>
-          <span className="block font-bold">{title}</span>
-          <span className="mt-1 block text-xs text-slate-400">{timing}</span>
-        </span>
-        <span aria-hidden="true" className="text-xl text-cyan-300">{open ? "−" : "+"}</span>
-      </button>
-      {open && (
-        <div id={id} className="border-t border-slate-700 px-3 py-3">
-          {tasks.map((task) => (
-            <CheckItem
-              key={task.id}
-              checked={Boolean(checked[task.id])}
-              onChange={() => onToggle(task.id)}
-            >
-              <span>{task.text}</span>
-              <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-cyan-300">
-                Owner: {task.owner}
-              </span>
-            </CheckItem>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ReturnToWorkTab({ employee }) {
-  const summary = getEmployeeReturnToWorkSummary(employee);
+  const experience = getEmployeeReturnToWorkExperience(employee, { asOfDate: "2026-08-27" });
   const [checked, setChecked] = useState({});
   const toggle = (id) => setChecked((current) => ({ ...current, [id]: !current[id] }));
-  const displayDate = (value) => value ? formatReturnToWorkDate(value) : RTW_NOT_AVAILABLE;
-  const checklist = [
-    {
-      id: "before-30",
-      title: "14–30 days before return",
-      timing: "Early planning and coordination",
-      tasks: [
-        { id: "confirm-recorded-date", text: "Confirm the recorded return date with Lincoln Financial and your manager.", owner: "Employee" },
-        { id: "confirm-documentation", text: "Confirm whether return documentation is required through the authorized process.", owner: "Lincoln Financial" },
-        { id: "plan-handoff", text: "Plan work hand-back, priority alignment, and a manager check-in.", owner: "Manager" },
-      ],
-    },
-    {
-      id: "before-3",
-      title: "3–7 days before return",
-      timing: "Practical readiness",
-      tasks: [
-        { id: "request-access", text: "Request IT or license reactivation before return through the authorized ServiceNow process.", owner: "IT / ServiceNow" },
-        { id: "review-delegations", text: "Review Workday and Ramp delegations and plan their removal when appropriate.", owner: "Employee" },
-        { id: "calendar-reset", text: "Prepare a calendar reset and first-week priorities with your manager.", owner: "Manager" },
-      ],
-    },
-    {
-      id: "first-day",
-      title: "First day back",
-      timing: "Access and alignment",
-      tasks: [
-        { id: "verify-access", text: "Verify required systems, licenses, and shared resources are accessible.", owner: "IT / ServiceNow" },
-        { id: "manager-checkin", text: "Complete a manager check-in and confirm the work hand-back sequence.", owner: "Manager" },
-        { id: "remove-delegations", text: "Remove Workday and Ramp delegations when appropriate.", owner: "Employee" },
-      ],
-    },
-    {
-      id: "first-30",
-      title: "First 30 days",
-      timing: "Reintegration follow-through",
-      tasks: [
-        { id: "reintegration-checkin", text: "Use a first-30-days reintegration check-in to review priorities and open actions.", owner: "Manager" },
-        { id: "phased-discussion", text: "Discuss phased reintegration options with your manager where applicable; no outcome is assumed here.", owner: "Employee / Manager" },
-        { id: "leave-ops-followup", text: "Route outstanding administrative questions to Twilio Leave Operations.", owner: "Twilio Leave Operations" },
-      ],
-    },
-  ];
+  const displayDate = (value) => value ? formatReturnToWorkDate(value) : "Date to be confirmed";
+  const hasNotice = experience.confirmationRequired || experience.viewId === "after-return";
 
   return (
     <div className="space-y-5">
       <Panel className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Badge tone={summary.hasReturnToWorkData ? "green" : "amber"}>{summary.status}</Badge>
-            <h2 className="mt-4 font-serif text-2xl font-bold">Return-to-Work Snapshot</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Administrative planning information from the verified source record. This view does not determine clearance, approval, eligibility, or accommodation need.
-            </p>
-          </div>
-          <span className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300">Record data</span>
-        </div>
+        <Badge tone={experience.dateStatus === "Overdue" ? "amber" : "green"}>{experience.dateStatus}</Badge>
+        <h2 className="mt-4 font-serif text-2xl font-bold">{experience.title}</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{experience.description}</p>
         <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-slate-700 pt-5 sm:grid-cols-2">
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Expected return date</dt><dd className="mt-1 font-bold text-cyan-300">{displayDate(summary.controllingReturnDate)}</dd></div>
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Actual return date</dt><dd className="mt-1 font-bold">{displayDate(summary.actualReturnDate)}</dd></div>
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Date basis</dt><dd className="mt-1">{summary.controllingDateLabel || RTW_NOT_AVAILABLE}</dd></div>
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Source report</dt><dd className="mt-1">{summary.sourceSheet || RTW_NOT_AVAILABLE}</dd></div>
+          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Expected return date</dt><dd className="mt-1 font-bold text-cyan-300">{displayDate(experience.expectedReturnDate)}</dd></div>
+          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Actual return date</dt><dd className="mt-1 font-bold">{displayDate(experience.actualReturnDate)}</dd></div>
         </dl>
-        <div className="mt-5 rounded-xl border border-slate-700 bg-[#10172a] p-4">
-          <h3 className="font-bold">Supporting date context</h3>
-          {summary.contextDates.length ? <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{summary.contextDates.map((date) => <div key={date.label} className="flex justify-between gap-3"><dt className="text-slate-400">{date.label}</dt><dd className="font-semibold">{date.displayValue}</dd></div>)}</dl> : <p className="mt-2 text-sm text-slate-400">{RTW_NOT_AVAILABLE}</p>}
-          <p className="mt-4 text-xs leading-5 text-slate-400">Planned dates are not confirmation of readiness. General planning guidance appears below.</p>
-        </div>
       </Panel>
-
-      <Panel className="p-6">
-        <Badge tone="cyan">General planning guidance</Badge>
-          <h2 className="mt-4 font-serif text-2xl font-bold">Return to Work Checklist</h2>
-        <p className="mt-2 text-sm text-slate-400">Tasks stay unchecked until you mark them locally. No completion is inferred from the source record.</p>
-        <div className="mt-5 space-y-3">{checklist.map((group) => <AccordionGroup key={group.id} {...group} checked={checked} onToggle={toggle} />)}</div>
-      </Panel>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel className="p-6">
-          <Badge tone="amber">Extension support</Badge>
-          <h2 className="mt-4 font-serif text-xl font-bold">Need more time away?</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">Contact Lincoln Financial through the authorized channel to request or discuss an extension. An extension is not guaranteed, and no grace period is assumed.</p>
-          <a className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-[#1B66EE] px-4 py-3 text-sm font-bold text-white hover:bg-[#3D7FF2]" href={MY_LINCOLN_URL} target="_blank" rel="noreferrer">Open MyLincoln Portal <span className="ml-2" aria-hidden="true">↗</span></a>
-        </Panel>
-        <Panel className="p-6">
-          <Badge tone="violet">IT / ServiceNow</Badge>
-          <h2 className="mt-4 font-serif text-xl font-bold">Activate your work systems</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">As general planning guidance, begin an access reactivation request approximately three days before a planned return. This record does not confirm that access was disabled.</p>
-          <a className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-3 text-sm font-bold text-white hover:border-cyan-300" href={SERVICENOW_URL} target="_blank" rel="noreferrer">Route to ServiceNow <span className="ml-2" aria-hidden="true">↗</span></a>
-        </Panel>
-      </div>
-
-      <Panel className="p-6">
-        <Badge tone="pink">Manager reintegration</Badge>
-          <h2 className="mt-4 font-serif text-xl font-bold">Connect with your manager</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-300">Discuss work hand-back, calendar reset, priority alignment, and a manager check-in. Where applicable, discuss phased reintegration options with your manager; this tool does not promise or determine a phased return.</p>
-      </Panel>
-
+      {hasNotice && <Panel className="border-l-4 border-l-rose-500 p-5"><h3 className="font-bold">{experience.confirmationRequired ? "Please confirm your return date" : "Lincoln follow-up"}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{experience.confirmationRequired ? "Confirm or update your return date in MyLincoln Portal, then confirm it with your manager." : "Contact Lincoln if approval or closure remains unresolved."}</p><a className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#1B66EE] px-4 py-2 text-sm font-bold text-white" href={MY_LINCOLN_URL} target="_blank" rel="noreferrer">Open MyLincoln Portal <span className="ml-2" aria-hidden="true">↗</span></a></Panel>}
+      {experience.actions.length > 0 && experience.viewId !== "not-yet" && <Panel className="p-6"><h3 className="font-serif text-2xl font-bold">{experience.title}</h3><p className="mt-1 text-sm text-slate-400">Complete the steps that apply to your return.</p><div className="mt-5 space-y-1">{experience.actions.map((action) => <CheckItem key={action.id} checked={Boolean(checked[action.id])} onChange={() => toggle(action.id)}><span>{action.text}</span>{action.destination && <a href={action.destination} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-bold text-[#72A5FF]">Open MyLincoln Portal ↗</a>}</CheckItem>)}</div></Panel>}
+      {experience.flexReturn.show && <Panel className="border-l-4 border-l-violet-400 p-6"><h3 className="font-serif text-xl font-bold">FlexReturn</h3><p className="mt-2 text-sm leading-6 text-slate-300">{experience.flexReturn.message}</p><a className="mt-4 inline-flex text-sm font-bold text-[#72A5FF] underline" href={experience.flexReturn.learnMoreUrl} target="_blank" rel="noreferrer">Learn more about FlexReturn <span className="ml-2" aria-hidden="true">↗</span></a></Panel>}
+      {experience.viewId === "after-return" && <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Post-return survey</h3><p className="mt-2 text-sm text-slate-300">Complete the short post-return survey to share your experience.</p></Panel>}
       <WorkplaceSupportPanel employee={employee} />
     </div>
   );
@@ -1442,7 +1322,6 @@ function WorkplaceSupportPanel({ employee }) {
     "Workplace schedule adjustment"
   );
   const [manager, setManager] = useState(employee.manager);
-  const [hrbp, setHrbp] = useState(employee.hrbp);
   const [copied, setCopied] = useState(false);
 
   const draft = `Subject: Request to begin the accommodation interactive process
@@ -1453,7 +1332,7 @@ I’m requesting a conversation about a workplace accommodation related to ${rea
 
 My requested start date is [DATE]. I will provide any required supporting documentation through the approved confidential process and will not include medical details in this email.
 
-Please include ${hrbp} as appropriate. Thank you for partnering with me on next steps.
+Please contact Twilio Leave Operations or the accommodations team for next steps.
 
 Best,
 ${employee.firstName} ${employee.lastName}`;
@@ -1527,11 +1406,6 @@ ${employee.firstName} ${employee.lastName}`;
             onChange={(event) => setManager(event.target.value)}
           />
 
-          <Field
-            label="HRBP"
-            value={hrbp}
-            onChange={(event) => setHrbp(event.target.value)}
-          />
         </div>
 
         <div className="mt-6 rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-xs leading-5 text-emerald-100">
@@ -1633,7 +1507,7 @@ function ChatTab({ employee }) {
     }
 
     if (q.includes("return") || q.includes("rtw")) {
-      return "Before returning, confirm whether Lincoln requires a release, align your return date with your manager, and verify system access. If workplace adjustments may help, use the optional workplace support section to begin a PHI-free interactive-process conversation.";
+      return "Update your return date in MyLincoln Portal, contact Lincoln if you need an extension, confirm the date with your manager, and check system access on your first day back. Use workplace support if job-related adjustments may help.";
     }
 
     if (q.includes("cert") || q.includes("document")) {
