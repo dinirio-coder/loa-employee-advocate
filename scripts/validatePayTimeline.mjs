@@ -48,6 +48,16 @@ assert.equal(rangeModel.timelineRanges[0].source, "Leave Plan");
 const conflictModel = getEmployeePayTimeline({ employeeId: "conflict", sourceRecords: [{ leaveBeginDate: "2026-09-01" }, { leaveBeginDate: "2026-09-02" }] }, { asOfDate });
 assert(conflictModel.timelineEvents.filter((event) => event.label === "Leave begin").every((event) => event.conflict));
 
+const nyModel = (leaveReason) => getEmployeePayTimeline({ state: "NY", leaveReason, sourceRecords: [{ employeeId: "ny", biweeklySalaryAmount: "10275.24", product: "STD", payPeriodFromDate: "2026-08-01", payPeriodThruDate: "2026-08-14", leaveBeginDate: "2026-08-01", leaveEndDate: "2026-08-14" }] });
+for (const [leaveReason, expectedState, expectedLincoln] of [["Bonding leave", 2457.06, 4393.44], ["Medical leave", 340, 6510.50]]) {
+	const model = nyModel(leaveReason);
+	assert.equal(model.stateBenefit.assumedStateOffset, expectedState);
+	assert.equal(model.planningEstimate.lincolnNetAfterStateOffset, expectedLincoln);
+	assert.equal(model.planningEstimate.twilio.amount, 3424.74);
+	assert(model.planningEstimate.twilio.amount >= 0 && model.planningEstimate.lincolnNetAfterStateOffset >= 0 && model.stateBenefit.assumedStateOffset >= 0);
+	assert.equal(model.stateBenefit.assumedStateOffset + model.planningEstimate.lincolnNetAfterStateOffset + model.planningEstimate.twilio.amount, model.planningEstimate.basePayTarget);
+}
+
 assert.equal(edgar.sourceRecords[1].payPeriodFromDate, "46215.0");
 assert.equal(edgarModel.timelineEvents.length > 0, true);
 console.log("Pay and leave timeline validation passed.");

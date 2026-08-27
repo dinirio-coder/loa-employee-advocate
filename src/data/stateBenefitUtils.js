@@ -3,10 +3,11 @@ import { STATE_BENEFIT_RULES, STATE_BENEFIT_RULES_BY_STATE } from "./stateBenefi
 const DAY_MS = 86400000;
 const STATE_CODES = new Set(STATE_BENEFIT_RULES.map((rule) => rule.stateCode));
 const STATE_NAMES = new Map(STATE_BENEFIT_RULES.map((rule) => [rule.stateName.toUpperCase(), rule.stateCode]));
-const numberOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+const numberOrNull = (value) => value === null || value === undefined || value === "" ? null : Number.isFinite(Number(value)) ? Number(value) : null;
 const populated = (value) => value !== null && value !== undefined && String(value).trim() !== "";
 const isoDate = (value) => populated(value) && /^\d{4}-\d{2}-\d{2}$/.test(String(value).trim()) ? String(value).trim() : null;
 const timestamp = (value) => isoDate(value) ? new Date(`${value}T00:00:00Z`).getTime() : null;
+const cents = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const daysBetween = (from, through) => {
   const start = timestamp(from);
   const end = timestamp(through);
@@ -21,15 +22,25 @@ export const normalizeState = (state, location = "") => {
   return match ? match[1] : null;
 };
 
-const leaveCategory = (employee) => {
-  const value = String(employee?.leaveCategory || employee?.leaveType || employee?.leaveReason || employee?.leaveReasonDescription || "").toUpperCase();
-  if (/MEDICAL|DISAB|OWN[_ ]?MEDICAL|SERIOUS HEALTH/.test(value)) return "OWN_MEDICAL";
-  if (/BOND|PARENT|MATERN|NEWBORN/.test(value)) return "BONDING";
-  if (/MILITARY|EXIGENCY/.test(value)) return "MILITARY_EXIGENCY";
-  if (/FAMILY|CAREGIV|FAMILY[_ ]?CARE/.test(value)) return "FAMILY_CARE";
-  if (/SAFE/.test(value)) return "SAFE_LEAVE";
-  if (/PRENATAL/.test(value)) return "PRENATAL";
-  return value.replace(/\s+/g, "_") || null;
+const sourceLeaveCategory = (employee) => employee?.leaveCategory ?? employee?.leaveType ?? employee?.leaveReason ?? employee?.leaveReasonDescription ?? null;
+const CATEGORY_ALIASES = new Map([
+  ["BND", "BONDING"],
+  ["BONDING", "BONDING"],
+  ["BONDING LEAVE", "BONDING"],
+  ["NEWBORN MATERNITY", "BONDING"],
+  ["NEWBORN PATERNITY", "BONDING"],
+  ["COMPANY PARENTAL", "BONDING"],
+  ["PARENTAL BONDING", "BONDING"],
+  ["OWN MEDICAL", "OWN_MEDICAL"],
+  ["MEDICAL LEAVE", "OWN_MEDICAL"],
+  ["FAMILY CARE", "FAMILY_CARE"],
+  ["MILITARY EXIGENCY", "MILITARY_EXIGENCY"],
+  ["SAFE LEAVE", "SAFE_LEAVE"],
+]);
+
+export const normalizeLeaveCategory = (value) => {
+  const normalized = String(value ?? "").trim().toUpperCase().replace(/[\s_-]+/g, " ");
+  return CATEGORY_ALIASES.get(normalized) || null;
 };
 
 const sourceStateOffset = (employee) => {
@@ -40,40 +51,48 @@ const sourceStateOffset = (employee) => {
 
 export const getStateBenefitCoordination = (employee, options = {}) => {
   const state = normalizeState(employee?.state, employee?.location);
-  const rule = options.programs?.[state] || STATE_BENEFIT_RULES_BY_STATE[state] || null;
+  const configuredRules = options.programs?.[state];
+  const stateRules = Array.isArray(configuredRules) ? configuredRules : STATE_BENEFIT_RULES_BY_STATE[state] || [];
   const leaveStart = isoDate(options.leaveStart || employee?.leaveBeginDate || employee?.benefitBeginDate);
   const leaveEnd = isoDate(options.leaveEnd || employee?.leaveEndDate || employee?.disabilityApprovedThrough || employee?.benefitEndDate);
   const payPeriodFrom = isoDate(options.payPeriodFrom || employee?.payPeriodFromDate);
   const payPeriodThrough = isoDate(options.payPeriodThrough || employee?.payPeriodThruDate);
   const leaveYear = Number((leaveStart || payPeriodFrom || options.asOfDate || new Date().toISOString()).slice(0, 4));
   const paymentYear = Number((payPeriodFrom || leaveStart || options.asOfDate || new Date().toISOString()).slice(0, 4));
+  const sourceCategory = sourceLeaveCategory(employee);
+  const category = normalizeLeaveCategory(sourceCategory);
+  const requiredProgramTypes = category === "OWN_MEDICAL" ? ["MEDICAL", "COMBINED"] : ["FAMILY", "COMBINED"];
+  const rule = stateRules
+    .filter((candidate) => requiredProgramTypes.includes(candidate.programType) && candidate.coveredLeaveCategories.includes(category))
+    .sort((left, right) => right.benefitsStartDate.localeCompare(left.benefitsStartDate))[0] || null;
   const maximumYearApplies = Boolean(rule && rule.maximumYear === leaveYear && rule.maximumYear === paymentYear);
   const activeOnLeaveDate = Boolean(rule && leaveStart && rule.programStatus === "Active" && leaveStart >= rule.benefitsStartDate && (!rule.benefitsEndDate || leaveStart <= rule.benefitsEndDate));
-  const category = leaveCategory(employee);
   const categoryCovered = Boolean(rule && category && rule.coveredLeaveCategories.includes(category));
   const overlapStart = leaveStart && payPeriodFrom ? new Date(Math.max(timestamp(leaveStart), timestamp(payPeriodFrom))).toISOString().slice(0, 10) : null;
   const overlapEnd = leaveEnd && payPeriodThrough ? new Date(Math.min(timestamp(leaveEnd), timestamp(payPeriodThrough))).toISOString().slice(0, 10) : null;
   const overlapDays = overlapStart && overlapEnd ? daysBetween(overlapStart, overlapEnd) : 0;
-  const availableWeeks = category === "OWN_MEDICAL" ? rule?.medicalLeaveWeeks : rule?.familyLeaveWeeks;
-  const eligibleDays = Math.min(overlapDays, (availableWeeks ?? 0) * 7);
+  const eligibleDays = overlapDays;
   const applicable = Boolean(rule && activeOnLeaveDate && maximumYearApplies && categoryCovered && eligibleDays > 0);
   const target = Math.max(0, numberOrNull(options.coordinatedPayPeriodTarget ?? employee?.biweeklySalary ?? employee?.biweeklySalaryAmount) ?? Number.POSITIVE_INFINITY);
-  const applicableMaximum = applicable ? rule.maximumWeeklyBenefit * eligibleDays / 7 : 0;
-  const cap = Math.min(target, applicableMaximum);
-  const recorded = sourceStateOffset(employee);
-  const assumedStateOffset = applicable ? Math.max(0, Math.min(recorded?.amount ?? applicableMaximum, cap)) : 0;
+  const lincolnGross = Math.max(0, cents(numberOrNull(options.lincolnGross) ?? target * 0.6667));
+  const applicableMaximum = applicable ? cents(rule.maximumWeeklyBenefit * eligibleDays / 7) : 0;
+  const assumedStateOffset = applicable ? cents(Math.min(applicableMaximum, lincolnGross, target)) : 0;
+  const lincolnAfterStateOffset = applicable ? cents(Math.max(lincolnGross - assumedStateOffset, 0)) : lincolnGross;
+  const twilioEstimatedTopUp = applicable ? cents(Math.max(target - assumedStateOffset - lincolnAfterStateOffset, 0)) : target;
   const suppliedStateAward = numberOrNull(options.actualStateAward ?? employee?.actualStateAward);
-  const awardStatus = String(options.awardStatus || employee?.stateAwardStatus || (suppliedStateAward !== null ? "award-recorded" : "pending")).toLowerCase();
-  const reconciliationEligible = suppliedStateAward !== null && ["award-recorded", "approved", "received"].includes(awardStatus);
+  const awardStatus = suppliedStateAward === null ? "Pending state award" : suppliedStateAward === 0 ? "No state benefit awarded" : "Award recorded";
+  const reconciliationEligible = suppliedStateAward !== null && ["award recorded", "approved", "received"].includes(awardStatus.toLowerCase());
   return {
     state, program: rule, applicable,
     futureProgram: Boolean(rule && leaveStart && leaveStart < rule.benefitsStartDate),
-    programStatus: rule?.programStatus || null, activeOnLeaveDate, category, categoryCovered, maximumYearApplies,
+    programStatus: rule?.programStatus || null, activeOnLeaveDate, sourceCategory, category, categoryCovered, maximumYearApplies,
     effectiveYear: applicable ? rule.maximumYear : null, weeklyMaximum: applicable ? rule.maximumWeeklyBenefit : 0,
     applicableMaximum, overlapDays, eligibleDays: applicable ? eligibleDays : 0, assumedStateOffset,
+    lincolnGross,
+    lincolnAfterStateOffset, twilioEstimatedTopUp,
     actualStateAward: reconciliationEligible ? Math.max(0, suppliedStateAward) : null,
     lincolnReconciliation: reconciliationEligible ? Math.max(0, assumedStateOffset - Math.max(0, suppliedStateAward)) : 0,
-    awardStatus, sourceAmountType: recorded && applicable ? recorded.source : "assumed",
+    awardStatus, sourceAmountType: "assumed",
     awardLetterRecipient: rule?.awardLetterRecipient || null, applicant: rule?.applicationOwner || null,
   };
 };

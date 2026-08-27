@@ -1379,9 +1379,14 @@ function StateStatutoryCard({ employee }) {
       <h3 className="font-serif text-lg font-bold">State Statutory Leave Coordination</h3>
       <p className="mt-3 text-sm leading-6 text-slate-300">Your normalized state is <strong>{safeText(stateBenefit.state, TEXT_NOT_AVAILABLE)}</strong>. Eligibility and award amounts are informational; the state agency makes the official eligibility and award determination.</p>
       <dl className="mt-4 space-y-3 text-sm">
-        <PayRow label="Potential state program" value={program?.name || "No applicable state program identified"} />
+        <PayRow label="Selected state program" value={program?.programName || "No applicable state program identified"} />
+        <PayRow label="Applicability" value={stateBenefit.applicable ? "Applicable" : "Not applicable"} />
+        <PayRow label="Source leave category" value={stateBenefit.sourceCategory || TEXT_NOT_AVAILABLE} />
+        <PayRow label="Normalized leave category" value={stateBenefit.category || "Unsupported category"} />
         <PayRow label="Program status" value={program?.programStatus || TEXT_NOT_AVAILABLE} />
         <PayRow label="Maximum weekly benefit and year" value={program ? `${money(program.maximumWeeklyBenefit)} · ${program.maximumYear}` : TEXT_NOT_AVAILABLE} />
+        <PayRow label="Program type" value={program?.programType || TEXT_NOT_AVAILABLE} />
+        <PayRow label="Covered category" value={stateBenefit.category || TEXT_NOT_AVAILABLE} />
         <PayRow label="Available family / medical duration" value={program ? `${program.familyLeaveWeeks ?? TEXT_NOT_AVAILABLE} / ${program.medicalLeaveWeeks ?? TEXT_NOT_AVAILABLE} weeks` : TEXT_NOT_AVAILABLE} />
         <PayRow label="Eligibility guidance" value={program?.eligibilityDescription || "Verify with the state agency; no eligibility determination is inferred."} />
         <PayRow label="Application owner" value={program?.applicationOwner || TEXT_NOT_AVAILABLE} />
