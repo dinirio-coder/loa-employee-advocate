@@ -22,9 +22,10 @@ import { getEmployeeReturnToWorkExperience } from "./data/returnToWorkExperience
 import { getEmployeePayExperience } from "./data/payExperienceUtils";
 import { getStateCoordinationExperience } from "./data/stateCoordinationExperience";
 import {
-  filterSupportResources,
-  getSupportResourceCategories,
-} from "./data/resourceUtils";
+  BENEFIT_RESOURCE_CATEGORIES,
+  BENEFIT_RESOURCES,
+  filterBenefitResources,
+} from "./data/benefitResources";
 
 const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
@@ -1231,7 +1232,7 @@ ${employee.firstName} ${employee.lastName}`;
   );
 }
 
-function SupportResourcesTab({ onOpenReturnToWork }) {
+function LegacySupportResourcesTab({ onOpenReturnToWork }) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [openResources, setOpenResources] = useState(() => new Set());
   const categories = getSupportResourceCategories();
@@ -1264,6 +1265,41 @@ function SupportResourcesTab({ onOpenReturnToWork }) {
       <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">Resources are presented for informational exploration. Availability, eligibility, services, and coverage may vary by location, health plan, employment status, and current vendor terms. Confirm current access details in Twilio benefit materials or with the applicable program administrator.</p>
     </div>
   );
+}
+
+function LegacyBenefitResourcesTab({ onOpenReturnToWork }) {
+  const [selectedCategory, setSelectedCategory] = useState("All resources");
+  const [search, setSearch] = useState("");
+  const resources = filterBenefitResources({ category: selectedCategory, search });
+  const recommendations = BENEFIT_RESOURCES.filter((resource) => resource.applicableTags.length > 0).slice(0, 8);
+  const buttonLabel = (resource) => resource.portalUrl ? "Open vendor website" : resource.accessMethod === "Access through Aetna." ? "Access through Aetna" : resource.accessMethod.includes("Workday") ? "Review in Workday" : resource.accessMethod.includes("Twilio Okta") ? "Open through Twilio Okta" : null;
+
+  return <div className="space-y-5">
+    <Panel className="p-6 sm:p-7"><Badge tone="pink">2026 benefits</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Benefit Resources</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Explore optional benefit resources by service or vendor. Search and filtering happen only in this browser and do not send employee information externally.</p></Panel>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">How to access your benefits</h3><div className="mt-4 grid gap-4 md:grid-cols-3 text-sm leading-6 text-slate-300"><p><strong className="text-white">Twilio Okta:</strong> Launch available benefit applications through Twilio Okta.</p><p><strong className="text-white">Workday:</strong> Review benefit elections, qualifying-life-event changes, beneficiaries, and payroll deductions.</p><p><strong className="text-white">Direct vendor access:</strong> Some vendors allow registration using a Twilio work email.</p></div></Panel>
+    <section aria-labelledby="resource-directory-heading"><div className="flex flex-wrap items-end justify-between gap-4"><div><h3 id="resource-directory-heading" className="font-serif text-2xl font-bold">Browse resources</h3><p className="mt-1 text-sm text-slate-400">Availability may depend on your enrolled medical plan.</p></div><label className="w-full sm:w-80"><span className="sr-only">Search benefits resources</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vendor or service" className="w-full rounded-lg border border-[#38425E] bg-[#0F1830] px-4 py-3 text-sm text-white placeholder:text-[#9AA0B4]" /></label></div><div className="mt-4 flex flex-wrap gap-2" aria-label="Resource categories"><button type="button" aria-pressed={selectedCategory === "All resources"} onClick={() => setSelectedCategory("All resources")} className="app-button app-button--secondary">All resources</button>{BENEFIT_RESOURCE_CATEGORIES.map((category) => <button key={category} type="button" aria-pressed={selectedCategory === category} onClick={() => setSelectedCategory(category)} className="app-button app-button--secondary">{category}</button>)}</div></section>
+    {resources.length ? <div className="grid gap-5 md:grid-cols-2">{resources.map((resource) => <Panel key={resource.id} className="flex h-full flex-col p-6"><div className="flex flex-wrap items-center justify-between gap-3"><Badge tone="cyan">{resource.category}</Badge><span className="text-xs text-slate-400">Plan year {resource.planYear}</span></div><h3 className="mt-5 font-serif text-2xl font-bold">{resource.vendorName}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{resource.shortDescription}</p><div className="mt-4 space-y-2 text-sm leading-6"><p><strong>Access:</strong> {resource.accessMethod}</p><p className="text-slate-400">{resource.eligibilityNote}</p></div>{resource.portalUrl && <div className="mt-auto pt-5"><a href={resource.portalUrl} target="_blank" rel="noreferrer" className="app-button app-button--primary">{buttonLabel(resource)}</a></div>}</Panel>)}</div> : <Panel className="p-6"><p className="text-sm text-slate-300">No active resources match this search. Try a different vendor, service, or category.</p><button type="button" onClick={() => { setSearch(""); setSelectedCategory("All resources"); }} className="app-button app-button--secondary mt-4">Clear filters</button></Panel>}
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Resources you may want to explore</h3><p className="mt-2 text-sm leading-6 text-slate-300">These optional resources may be useful during parental or bonding leave, a personal medical leave, or return to work. They do not indicate eligibility, enrollment, or a recommendation for care.</p><div className="mt-4 flex flex-wrap gap-2">{recommendations.map((resource) => <Badge key={resource.id} tone="violet">{resource.vendorName}</Badge>)}</div></Panel>
+    <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">Care.com is no longer listed as an active 2026 benefit. Review Cleo for available parenting and caregiving support.</p>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Need help finding the right resource?</h3><p className="mt-2 text-sm leading-6 text-slate-300">Submit a Benefits Question through the People Service Portal or review your current benefit elections in Workday.</p><button type="button" onClick={onOpenReturnToWork} className="app-button app-button--secondary mt-4">Open Return to Work</button></Panel>
+  </div>;
+}
+
+function SupportResourcesTab({ onOpenReturnToWork }) {
+  const [selectedCategory, setSelectedCategory] = useState("All resources");
+  const [search, setSearch] = useState("");
+  const resources = filterBenefitResources({ category: selectedCategory, search });
+  const recommendations = BENEFIT_RESOURCES.filter((resource) => resource.applicableTags.length > 0).slice(0, 8);
+
+  return <div className="space-y-5">
+    <Panel className="p-6 sm:p-7"><Badge tone="pink">2026 benefits</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Benefit Resources</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Explore optional benefit resources by service or vendor. Search and filtering happen only in this browser and do not send employee information externally.</p></Panel>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">How to access your benefits</h3><div className="mt-4 grid gap-4 md:grid-cols-3 text-sm leading-6 text-slate-300"><p><strong className="text-white">Twilio Okta:</strong> Launch available benefit applications through Twilio Okta. <a href="https://twilio.okta.com" target="_blank" rel="noreferrer" className="font-bold text-[#72A5FF]">Open Twilio Okta</a></p><p><strong className="text-white">Workday:</strong> Review benefit elections, qualifying-life-event changes, beneficiaries, and payroll deductions. Open Workday through Twilio Okta.</p><p><strong className="text-white">Direct vendor access:</strong> Some vendors allow registration using a Twilio work email.</p></div></Panel>
+    <section aria-labelledby="resource-directory-heading"><div className="flex flex-wrap items-end justify-between gap-4"><div><h3 id="resource-directory-heading" className="font-serif text-2xl font-bold">Browse resources</h3><p className="mt-1 text-sm text-slate-400">Availability may depend on your enrolled medical plan.</p></div><label className="w-full sm:w-80"><span className="sr-only">Search benefits resources</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vendor or service" className="w-full rounded-lg border border-[#38425E] bg-[#0F1830] px-4 py-3 text-sm text-white placeholder:text-[#9AA0B4]" /></label></div><div className="mt-4 flex flex-wrap gap-2" aria-label="Resource categories"><button type="button" aria-pressed={selectedCategory === "All resources"} onClick={() => setSelectedCategory("All resources")} className="app-button app-button--secondary">All resources</button>{BENEFIT_RESOURCE_CATEGORIES.map((category) => <button key={category} type="button" aria-pressed={selectedCategory === category} onClick={() => setSelectedCategory(category)} className="app-button app-button--secondary">{category}</button>)}</div></section>
+    {resources.length ? <div className="grid gap-5 md:grid-cols-2">{resources.map((resource) => <Panel key={resource.id} className="flex h-full flex-col p-6"><div className="flex flex-wrap items-center justify-between gap-3"><Badge tone="cyan">{resource.category}</Badge><span className="text-xs text-slate-400">Plan year {resource.planYear}</span></div><h3 className="mt-5 font-serif text-2xl font-bold">{resource.vendorName}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{resource.shortDescription}</p><div className="mt-4 space-y-2 text-sm leading-6"><p><strong>Access:</strong> {resource.accessMethod}</p><p className="text-slate-400">{resource.eligibilityNote}</p></div>{[...new Map(resource.links.map((link) => [link.url, link])).values()].length > 0 && <div className="mt-auto flex flex-wrap gap-2 pt-5">{[...new Map(resource.links.map((link) => [link.url, link])).values()].map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="app-button app-button--primary">{link.label}</a>)}</div>}</Panel>)}</div> : <Panel className="p-6"><p className="text-sm text-slate-300">No active resources match this search. Try a different vendor, service, or category.</p><button type="button" onClick={() => { setSearch(""); setSelectedCategory("All resources"); }} className="app-button app-button--secondary mt-4">Clear filters</button></Panel>}
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Resources you may want to explore</h3><p className="mt-2 text-sm leading-6 text-slate-300">These optional resources may be useful during parental or bonding leave, a personal medical leave, or return to work. They do not indicate eligibility, enrollment, or a recommendation for care.</p><div className="mt-4 flex flex-wrap gap-2">{recommendations.map((resource) => <Badge key={resource.id} tone="violet">{resource.vendorName}</Badge>)}</div></Panel>
+    <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">Care.com is no longer listed as an active 2026 benefit. Review Cleo for available parenting and caregiving support.</p>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Need help finding the right resource?</h3><p className="mt-2 text-sm leading-6 text-slate-300">Submit a Benefits Question through the People Service Portal or review your current benefit elections in Workday. Open through Twilio Okta.</p><button type="button" onClick={onOpenReturnToWork} className="app-button app-button--secondary mt-4">Open Return to Work</button></Panel>
+  </div>;
 }
 
 function ChatTab({ employee }) {

@@ -31,6 +31,8 @@
     "test:state-benefits": "node scripts/validateStateBenefits.mjs",
     "generate:state-benefits": "node scripts/rebuildStateBenefitRules.mjs",
     "test:resources": "node scripts/validateResources.mjs",
+    "test:benefit-resources": "node scripts/validateBenefitResources.mjs",
+    "test:benefit-resources-ui": "node scripts/validateBenefitResourcesUi.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
