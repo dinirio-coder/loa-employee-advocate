@@ -16,6 +16,8 @@ import { getEmployeePriorityActions } from "./data/actionPlanUtils";
 import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
+import { getEmployeeLeaveJourney } from "./data/leaveJourneyUtils";
+import { LeaveJourneyTimeline } from "./components/LeaveJourneyTimeline";
 import { getStateBenefitCoordination } from "./data/stateBenefitUtils";
 import { getEmployeeLifecycleAlerts } from "./data/lifecycleAlertUtils";
 import { getEmployeeReturnToWorkExperience } from "./data/returnToWorkExperience";
@@ -741,8 +743,8 @@ function TabBar({ active, setActive }) {
   );
 }
 
-function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleItem }) {
-  const panelId = `lifecycle-panel-${stage.id}`;
+function LifecycleStagePanel({ stage, checked, onToggleItem }) {
+  const panelId = `lifecycle-stage-panel-${stage.id}`;
   const completed = stage.items.filter((item) => checked[item.id]).length;
   const accents = {
     cyan: "border-l-cyan-400 text-cyan-300",
@@ -752,87 +754,61 @@ function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleIte
   };
 
   return (
-    <section className={`rounded-xl border border-slate-700 border-l-4 bg-[#0F1830]/90 ${accents[stage.accent].split(" ")[0]}`}>
-      <h3>
-        <button
-          type="button"
-          id={`${panelId}-header`}
-          aria-expanded={isOpen}
-          aria-controls={panelId}
-          aria-label={`${isOpen ? "Collapse" : "Expand"} ${stage.title}`}
-          onClick={() => onToggleStage(stage.id)}
-          className="flex min-h-16 w-full items-center justify-between gap-4 p-4 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-        >
-          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-sm font-bold">{stage.number}. {stage.title}</span>
-            <span className="text-xs text-slate-400">{stage.timeframe}</span>
-            {stage.status === "suggested" && <Badge tone="green">Recommended for you</Badge>}
-          </span>
-          <span className="flex shrink-0 items-center gap-3 text-xs text-slate-400">
-            <span>{completed} of {stage.items.length} reviewed</span>
-            <span aria-hidden="true" className={`text-xl transition-transform ${isOpen ? "rotate-180" : ""}`}>⌄</span>
-          </span>
-        </button>
-      </h3>
-      {isOpen && (
-        <div id={panelId} role="region" aria-labelledby={`${panelId}-heading`} className="border-t border-slate-700 p-4">
-          <span id={`${panelId}-heading`} className="sr-only">{stage.title} details</span>
-          <p className="text-sm leading-6 text-slate-300">{stage.description}</p>
-          <p className="mt-2 text-xs text-slate-400">{stage.basis}</p>
-          <div className="mt-3 space-y-1">
-            {stage.items.map((item) => (
-              <CheckItem key={item.id} checked={Boolean(checked[item.id])} onChange={() => onToggleItem(item.id)}>
-                <span className="block font-semibold">{item.title}</span>
-                <span className="mt-1 block text-slate-300">{item.description}</span>
-                <span className="mt-2 block text-xs text-cyan-300">{item.timing}</span>
-                {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open next step <span aria-hidden="true">↗</span></a>}
-              </CheckItem>
-            ))}
-          </div>
-        </div>
-      )}
+    <section id={panelId} role="tabpanel" aria-labelledby={`lifecycle-stage-tab-${stage.id}`} className={`mt-4 rounded-xl border border-slate-700 border-l-4 bg-[#0F1830]/90 p-4 ${accents[stage.accent].split(" ")[0]}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h3 className="text-sm font-bold">{stage.number}. {stage.title}</h3><p className="mt-1 text-xs text-slate-400">{stage.timeframe}</p></div>
+        <span className="text-xs text-slate-400">{completed} of {stage.items.length} reviewed</span>
+      </div>
+      <p className="mt-4 text-sm leading-6 text-slate-300">{stage.description}</p>
+      <p className="mt-2 text-xs text-slate-400">{stage.basis}</p>
+      <div className="mt-3 space-y-1">
+        {stage.items.map((item) => (
+          <CheckItem key={item.id} checked={Boolean(checked[item.id])} onChange={() => onToggleItem(item.id)}>
+            <span className="block font-semibold">{item.title}</span>
+            <span className="mt-1 block text-slate-300">{item.description}</span>
+            <span className="mt-2 block text-xs text-cyan-300">{item.timing}</span>
+            {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open next step <span aria-hidden="true">↗</span></a>}
+          </CheckItem>
+        ))}
+      </div>
     </section>
   );
 }
 
 export function LifecycleOverview({ employee }) {
   const lifecycle = getEmployeeLifecycle(employee);
-  const [openStages, setOpenStages] = useState(() => new Set([lifecycle.suggestedStageId || "pre-leave"]));
+  const journey = getEmployeeLeaveJourney(employee);
+  const [selectedStageId, setSelectedStageId] = useState(() => lifecycle.suggestedStageId || lifecycle.stages[0]?.id);
   const [checked, setChecked] = useState({});
 
   useEffect(() => {
-    setOpenStages(new Set([lifecycle.suggestedStageId || "pre-leave"]));
+    setSelectedStageId(lifecycle.suggestedStageId || lifecycle.stages[0]?.id);
     setChecked({});
   }, [employee?.employeeId]);
 
-  const toggleStage = (id) => setOpenStages((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-  const setAllStages = (open) => setOpenStages(open ? new Set(lifecycle.stages.map((stage) => stage.id)) : new Set());
-  const focusStage = (id) => {
-    setOpenStages((current) => new Set(current).add(id));
-    window.requestAnimationFrame(() => document.getElementById(`lifecycle-panel-${id}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  const selectedStage = lifecycle.stages.find((stage) => stage.id === selectedStageId) || lifecycle.stages[0];
+  const selectStage = (id) => setSelectedStageId(id);
+  const moveTabFocus = (event, index) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? lifecycle.stages.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + lifecycle.stages.length) % lifecycle.stages.length;
+    const nextStage = lifecycle.stages[nextIndex];
+    selectStage(nextStage.id);
+    document.getElementById(`lifecycle-stage-tab-${nextStage.id}`)?.focus();
   };
 
   return (
     <div className="space-y-5">
+      <LeaveJourneyTimeline journey={journey} />
       <Panel className="p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><h2 className="font-serif text-2xl font-bold">Your Leave Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage and track your next steps.</p></div>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setAllStages(true)} className="app-button app-button--secondary">Expand all</button><button type="button" onClick={() => setAllStages(false)} className="app-button app-button--tertiary">Collapse all</button></div>
-        </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Lifecycle stages">
-          {lifecycle.stages.map((stage) => <button type="button" key={stage.id} onClick={() => focusStage(stage.id)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${stage.status === "suggested" ? "border-emerald-400/70 bg-emerald-400/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal">Recommended stage</span>}</button>)}
+        <div><h2 className="font-serif text-2xl font-bold">Your Leave Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage and track your next steps.</p></div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="tablist" aria-label="Lifecycle stages">
+          {lifecycle.stages.map((stage, index) => <button type="button" role="tab" id={`lifecycle-stage-tab-${stage.id}`} aria-selected={selectedStage.id === stage.id} aria-controls={`lifecycle-stage-panel-${stage.id}`} tabIndex={selectedStage.id === stage.id ? 0 : -1} key={stage.id} onClick={() => selectStage(stage.id)} onKeyDown={(event) => moveTabFocus(event, index)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${selectedStage.id === stage.id ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-slate-700 text-slate-300 hover:border-slate-500"} ${stage.status === "suggested" ? "ring-1 ring-emerald-400/50" : ""}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal text-emerald-200">Recommended stage</span>}</button>)}
         </div>
         {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified. Stage 1 is open for orientation.</p>}
-        <div className="mt-4 space-y-3">{lifecycle.stages.map((stage) => <LifecycleAccordion key={stage.id} stage={stage} isOpen={openStages.has(stage.id)} checked={checked} onToggleStage={toggleStage} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />)}</div>
+        {selectedStage && <LifecycleStagePanel stage={selectedStage} checked={checked} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />}
         <p className="mt-4 text-xs text-slate-400">Your checked items are saved only for this session and do not update Workday or Lincoln Financial.</p>
       </Panel>
-      <div className="space-y-5">
-        <Panel className="p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-serif text-lg font-bold">Profile Snapshot</h3><Badge tone="green">Verified</Badge></div><dl className="mt-4 divide-y divide-slate-700/70 text-sm">{[["Leave type", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],["Plan dates", `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`],["Annual base salary", "Pay information is not available."]].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-6 py-3"><dt className="text-slate-400">{label}</dt><dd className="text-right font-semibold text-slate-100">{value}</dd></div>)}</dl></Panel>
-      </div>
     </div>
   );
 }
@@ -1017,7 +993,7 @@ function PlanTab({ employee }) {
         </div>
 
         <div className="mt-9 overflow-x-auto pb-3">
-          <div className="min-w-[720px]">
+          <div className="w-full">
             <div className="relative mb-4 h-28 rounded-2xl border border-slate-700 bg-[#10172a] p-4">
               <div className="relative h-full">
                 {phases.map((phase) => (
