@@ -1,4 +1,4 @@
-const NOT_AVAILABLE = "Not available in source report";
+const NOT_AVAILABLE = "Not available";
 
 const populated = (value) => {
   if (value === null || value === undefined) return false;
@@ -27,7 +27,7 @@ const sourceSheetLabel = (value) =>
 const contextDates = (record) => [
   ["Leave begins", validDate(record.leaveBeginDate)],
   ["Leave ends", validDate(record.leaveEndDate)],
-  ["Benefit ends", validDate(record.benefitEndDate)],
+  ["Pay date", validDate(record.benefitEndDate)],
   ["Disability approved through", validDate(record.disabilityApprovedThrough)],
 ].filter(([, value]) => value).map(([label, value]) => ({
   label,
@@ -52,7 +52,7 @@ export const getEmployeeReturnToWorkSummary = (employee) => {
     return {
       hasReturnToWorkData: false,
       status: "Return date not available",
-      statusBasis: "No valid RTW date is present in the source records.",
+      statusBasis: "No valid return date is available.",
       estimatedReturnDate: null,
       actualReturnDate: null,
       controllingReturnDate: null,
@@ -68,7 +68,7 @@ export const getEmployeeReturnToWorkSummary = (employee) => {
   return {
     hasReturnToWorkData: true,
     status: isActual ? "Return recorded" : "Planned return",
-    statusBasis: isActual ? "Actual RTW date in source record." : `${selected.label} in source record.`,
+    statusBasis: isActual ? "Actual return date recorded." : `${selected.label}.`,
     estimatedReturnDate: validDate(selectedRecord.estimatedRTW),
     actualReturnDate: validDate(selectedRecord.actualRTW),
     controllingReturnDate: selected.value,

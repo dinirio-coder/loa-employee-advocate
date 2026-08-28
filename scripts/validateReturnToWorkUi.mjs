@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+assert.match(app, /getEmployeeReturnToWorkExperience/);
+assert.match(app, /function ReturnToWorkTab/);
+assert.equal((app.match(/function ReturnToWorkTab\s*\(/g) || []).length, 1);
+assert.doesNotMatch(app, /LegacyReturnToWorkTab|RetiredReturnToWorkTab/);
+assert.doesNotMatch(app, /First 30 days|first-30|14–30 days before return|3–7 days before return/);
+assert.doesNotMatch(app, /Request IT or license reactivation before return/);
+assert.doesNotMatch(app, /label="HRBP"|setHrbp|\$\{hrbp\}/);
+assert.match(app, /experience\.flexReturn\.show/);
+assert.match(app, /experience\.flexReturn\.learnMoreUrl/);
+assert.match(app, /Learn more about FlexReturn/);
+assert.match(app, /target="_blank" rel="noreferrer"/);
+assert.match(app, /experience\.viewId === "after-return"/);
+assert.doesNotMatch(app, /Return-to-Work[^\n]*(Source report|source record|Record data|Owner:|authorized process)/i);
+console.log("Return-to-work UI validation passed.");

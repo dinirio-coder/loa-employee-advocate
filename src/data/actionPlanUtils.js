@@ -1,16 +1,9 @@
-import { getEmployeeReturnToWorkSummary } from "./rtwUtils.js";
+import { getLifecycleStageDecision } from "./lifecycleStageEngine.js";
+import { getEmployeeLifecycleAlerts } from "./lifecycleAlertUtils.js";
+import { getStateCoordinationExperience } from "./stateCoordinationExperience.js";
+import { normalizeEmployeeLeaveStatus } from "./statusUtils.js";
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
-const SERVICENOW_URL = "https://twilio.service-now.com/";
-
-const populated = (value) => value !== null && value !== undefined && String(value).trim() !== "";
-const validDate = (value) => {
-  if (!populated(value)) return null;
-  const text = String(value).trim();
-  const date = new Date(`${text}T00:00:00Z`);
-  return Number.isNaN(date.getTime()) ? null : text;
-};
-const recordWith = (records, field) => records.find((record) => validDate(record[field]));
 
 const action = (id, title, description, timing, owner, destination, basis, urgency = "Normal") => ({
   id,
@@ -23,42 +16,70 @@ const action = (id, title, description, timing, owner, destination, basis, urgen
   urgency,
 });
 
+const actionsByStage = {
+  "pre-leave": (basis) => [
+    action("apply-for-leave", "Apply for leave", "Apply through MyLincoln Portal or contact Lincoln Financial for help starting your request.", "As soon as you know you may need leave", "Employee", MY_LINCOLN_URL, basis, "High"),
+    action("tell-manager", "Tell your manager", "Share your expected leave start date with your manager. You do not need to provide medical details.", "After starting your leave request", "Employee", null, basis),
+  ],
+  documentation: (basis) => [
+    action("documentation-review-messages", "Review Lincoln’s messages", "Check MyLincoln Portal and your email for documentation instructions.", "Next step", "Employee", MY_LINCOLN_URL, basis, "High"),
+    action("documentation-understand-request", "Understand what is required", "Review the forms, information, and deadline listed in Lincoln’s message.", "When Lincoln sends the request", "Employee", MY_LINCOLN_URL, basis, "High"),
+    action("documentation-submit", "Submit your documentation", "Submit the requested documentation by Lincoln’s deadline, usually within 15 calendar days.", "By the deadline shown by Lincoln", "Employee", MY_LINCOLN_URL, basis, "High"),
+    action("documentation-more-time", "Contact Lincoln if you need more time", "Contact Lincoln promptly if you may not be able to meet the documentation deadline.", "Before the deadline", "Employee", MY_LINCOLN_URL, basis, "High"),
+  ],
+  "business-handoff": (basis) => [
+    action("prepare-handoff", "Complete your work handoff", "Review priorities, coverage, and important contacts with your manager.", "About 3 days before leave", "Employee", null, basis, "High"),
+    action("prepare-delegations", "Set Workday and Ramp delegations", "Confirm the correct people and activation dates for your delegations.", "About 3 days before leave", "Employee", null, basis, "High"),
+    action("prepare-out-of-office", "Prepare your out-of-office message", "Add your leave dates and backup contact without including medical or claim details.", "About 3 days before leave", "Employee", null, basis),
+  ],
+  "on-leave": (basis) => [
+    action("monitor-lincoln", "Check for Lincoln updates", "Review MyLincoln Portal and your email for important claim updates.", "During leave", "Employee", MY_LINCOLN_URL, basis, "High"),
+    action("complete-lincoln-actions", "Complete requested actions", "Respond to Lincoln if additional information or another action is requested.", "By the date shown in Lincoln’s message", "Employee", MY_LINCOLN_URL, basis, "High"),
+  ],
+  "return-to-work": (basis) => [
+    action("return-consider-extension", "Decide whether you may need an extension", "Review whether you expect to return on the currently planned date.", "About 2 weeks before your expected return", "Employee", null, basis, "High"),
+    action("return-contact-lincoln", "Contact Lincoln if you need an extension", "Use MyLincoln Portal or contact Lincoln promptly if your return date may change.", "As soon as you know your return date may change", "Employee", MY_LINCOLN_URL, basis, "High"),
+    action("return-confirm-date", "Confirm your return date", "Confirm your expected return date with Lincoln Financial and your manager.", "Before your return", "Employee", MY_LINCOLN_URL, basis, "High"),
+  ],
+  "first-day-back": (basis) => [
+    action("check-system-access", "Check your system access", "Confirm that you can access the systems you need for work.", "Your first day back", "Employee", null, basis, "High"),
+    action("connect-manager", "Connect with your manager", "Meet with your manager to confirm your return and discuss immediate priorities.", "Your first day back", "Employee", null, basis, "High"),
+    action("review-priorities", "Review priorities and meetings", "Review current priorities, calendar changes, and upcoming meetings.", "Your first day back", "Employee", null, basis),
+    action("remove-delegations", "Remove Workday and Ramp delegations", "Remove or update the delegations that were used during your leave.", "Your first day back", "Employee", null, basis),
+  ],
+  "after-return": (basis) => [
+    action("post-return-survey", "Complete the post-return survey", "Share brief feedback about your leave and return experience.", "After returning to work", "Employee", null, basis),
+  ],
+};
+
+const fallbackActions = (basis) => [
+  action("review-lincoln-messages", "Review Lincoln’s messages", "Check MyLincoln Portal and your email for your latest leave status and next steps.", "Next step", "Employee", MY_LINCOLN_URL, basis, "High"),
+  action("confirm-leave-dates", "Confirm your leave dates", "Contact Lincoln if your leave start date, expected return date, approval, or closure is unresolved.", "Next step", "Employee", MY_LINCOLN_URL, basis, "High"),
+  action("track-your-todos", "Track your to-dos", "Use Your Leave Journey to review the steps that apply to your leave.", "As needed", "Employee", null, basis),
+];
+
+const pendingActions = (basis) => [
+  action("documentation-submit", "Submit your documentation to Lincoln", "Submit your required documentation through MyLincoln Portal by the deadline shown there, usually within 15 calendar days.", "By the deadline shown in MyLincoln Portal", "Employee", MY_LINCOLN_URL, basis, "High"),
+  action("tell-manager", "Tell your manager", "Share your expected leave start date with your manager. You do not need to provide medical details.", "After starting your leave request", "Employee", null, basis),
+];
+
 export const getEmployeePriorityActions = (employee, options = {}) => {
-  const records = Array.isArray(employee?.sourceRecords) ? employee.sourceRecords : [];
-  const rtw = getEmployeeReturnToWorkSummary(employee);
-  const hasReturnRecord = rtw.hasReturnToWorkData;
-  const beginRecord = recordWith(records, "leaveBeginDate");
-  const hasFutureBegin = beginRecord && validDate(beginRecord.leaveBeginDate) >= (options.asOfDate || new Date().toISOString().slice(0, 10));
-  const status = String(employee?.currentReportStatus || employee?.leaveStatus || "").toUpperCase();
-  const documentationPending = ["PE", "PENDING", "PEND"].includes(status) && !hasFutureBegin && populated(employee?.dateReceived);
-
-  if (hasReturnRecord) {
+  const decision = getLifecycleStageDecision(employee, options);
+  const status = normalizeEmployeeLeaveStatus(employee);
+  const alerts = getEmployeeLifecycleAlerts(employee, options);
+  const stateExperience = getStateCoordinationExperience(employee, options);
+  const alertActions = alerts.map((alert) => action(`alert-${alert.id}`, alert.title, alert.description, "Act now", "Employee", alert.destination, "Important follow-up for your leave.", alert.severity === "high" ? "High" : "Normal"));
+  const stateAction = stateExperience.applicationAction ? [action("state-application", "Apply for your state benefit", "Complete the separate state application so the state agency can review your benefit request.", "As soon as possible", "Employee", stateExperience.applicationAction.url, "A state application may be needed.", "High")] : [];
+  if (status.statusKey.startsWith("PENDING")) {
+    const requiredActions = pendingActions(decision.reason);
+    const requiredTitles = new Set(requiredActions.map((item) => item.title));
     return [
-      action("rtw-confirm-record", "Confirm the recorded return date", "Align the source-record date with Lincoln Financial and your manager through the authorized process.", "Before return", "Employee", MY_LINCOLN_URL, `${rtw.controllingDateLabel} is available from ${rtw.sourceSheet || "the source report"}.`, "High"),
-      action("rtw-restore-access", "Prepare system access", "Request IT or license reactivation before returning and verify access on the first day.", "Approximately 3 days before return", "IT / ServiceNow", SERVICENOW_URL, "A source-backed RTW date is available; access status is not inferred.", "High"),
-      action("rtw-manager-handoff", "Coordinate manager reintegration", "Plan work hand-back, calendar reset, priorities, and a manager check-in.", "Before return and first 30 days", "Manager", null, "A source-backed RTW date supports administrative reintegration planning.", "Normal"),
+      ...requiredActions,
+      ...alertActions.filter((item) => !requiredTitles.has(item.title)),
+      ...stateAction.filter((item) => !requiredTitles.has(item.title)),
     ];
   }
-
-  if (hasFutureBegin) {
-    return [
-      action("preleave-confirm-intake", "Confirm Lincoln intake status", "Check the recorded leave status and follow up through the authorized Lincoln process.", "Before leave begins", "Lincoln Financial", MY_LINCOLN_URL, `Leave begins ${beginRecord.leaveBeginDate} in ${beginRecord.sourceSheet || "the source report"}; intake details should be confirmed there.`, "High"),
-      action("preleave-business-handoff", "Complete the business handoff", "Confirm owners, escalation contacts, priorities, and manager coverage without medical details.", "Before leave begins", "Employee / Manager", null, `Leave start date is available from ${beginRecord.sourceSheet || "the source report"}.`, "Normal"),
-      action("preleave-delegations", "Configure Workday and Ramp delegations", "Set delegation owners and activation dates for the leave period.", "Before leave begins", "Employee", null, "Future leave start is present; delegation completion is not inferred.", "Normal"),
-    ];
-  }
-
-  if (documentationPending) {
-    return [
-      action("documentation-check-portal", "Check MyLincoln Portal", "Review authorized messages and outstanding documentation instructions.", "Next administrative step", "Employee", MY_LINCOLN_URL, `Source status is ${status}; documentation requirements are not determined here.`, "High"),
-      action("documentation-confirm-deadline", "Confirm the certification deadline", "Use the authorized process to confirm any controlling deadline shown in the source record.", "As shown in the source record", "Lincoln Financial", MY_LINCOLN_URL, "A pending source status is present; no deadline is invented when it is unavailable.", "High"),
-      action("documentation-receipt", "Confirm documentation receipt", "Submit or confirm receipt of required documentation only through the authorized process.", "After submission", "Lincoln Financial", MY_LINCOLN_URL, "Source status indicates follow-up may be needed; no completion is inferred.", "Normal"),
-    ];
-  }
-
-  return [
-    action("fallback-portal", "Check MyLincoln Portal", "Review the latest authorized leave messages and recorded actions.", "Next administrative step", "Lincoln Financial", MY_LINCOLN_URL, "Operational status or dates are incomplete in the source report.", "High"),
-    action("fallback-leave-ops", "Confirm leave dates", "Ask Twilio Leave Operations to confirm the administrative dates available for your record.", "Next administrative step", "Twilio Leave Operations", null, "A reliable operational date is missing from the source report.", "Normal"),
-    action("fallback-handoff", "Review the business handoff", "Confirm owners, priorities, and escalation contacts with your manager without medical details.", "Next administrative step", "Employee / Manager", null, "A business handoff is useful while source dependencies remain incomplete.", "Normal"),
-  ];
+  const normalActions = actionsByStage[decision.stageId]?.(decision.reason) || fallbackActions(decision.reason);
+  const existingTitles = new Set([...alerts.map((alert) => alert.title), ...normalActions.map((item) => item.title)]);
+  return [...alertActions, ...stateAction.filter((item) => !existingTitles.has(item.title)), ...normalActions.filter((item) => !alerts.some((alert) => alert.title === item.title))];
 };

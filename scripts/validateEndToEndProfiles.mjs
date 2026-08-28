@@ -1,0 +1,40 @@
+import assert from "node:assert/strict";
+import { CURATED_DEMO_PROFILES } from "../src/data/curatedDemoProfiles.js";
+import { getLifecycleStageDecision } from "../src/data/lifecycleStageEngine.js";
+import { getEmployeeLifecycle } from "../src/data/lifecycleUtils.js";
+import { getEmployeeNextMilestone } from "../src/data/milestoneUtils.js";
+import { getEmployeeLifecycleAlerts } from "../src/data/lifecycleAlertUtils.js";
+import { getEmployeePriorityActions } from "../src/data/actionPlanUtils.js";
+import { getEmployeeReturnToWorkExperience } from "../src/data/returnToWorkExperience.js";
+import { getEmployeePayTimeline } from "../src/data/payTimelineUtils.js";
+import { getEmployeePayExperience } from "../src/data/payExperienceUtils.js";
+import { getStateBenefitCoordination } from "../src/data/stateBenefitUtils.js";
+import { getStateCoordinationExperience } from "../src/data/stateCoordinationExperience.js";
+
+for (const scenario of CURATED_DEMO_PROFILES) {
+  const options = { asOfDate: scenario.asOfDate };
+  const decision = getLifecycleStageDecision(scenario.profile, options);
+  const lifecycle = getEmployeeLifecycle(scenario.profile, options);
+  const milestone = getEmployeeNextMilestone(scenario.profile, options);
+  const alerts = getEmployeeLifecycleAlerts(scenario.profile, options);
+  const actions = getEmployeePriorityActions(scenario.profile, options);
+  const returnExperience = getEmployeeReturnToWorkExperience(scenario.profile, options);
+  const payTimeline = getEmployeePayTimeline(scenario.profile, options);
+  const pay = getEmployeePayExperience(scenario.profile, options);
+  const state = getStateBenefitCoordination(scenario.profile, options);
+  const stateExperience = getStateCoordinationExperience(scenario.profile, options);
+  assert.equal(decision.stageId, scenario.expectedStage, scenario.id);
+  assert.equal(milestone.label, scenario.expectedMilestone, scenario.id);
+  assert.equal(pay.scenario, scenario.expectedPayScenario, scenario.id);
+  assert.equal(state.program?.programName || null, scenario.expectedStateProgram, scenario.id);
+  assert.equal(new Set(actions.map((action) => action.id)).size, actions.length, scenario.id);
+  assert.equal(new Set(alerts.map((alert) => alert.id)).size, alerts.length, scenario.id);
+  assert.deepEqual(decision, getLifecycleStageDecision(scenario.profile, options), `${scenario.id} nondeterministic stage`);
+  assert.deepEqual(pay, getEmployeePayExperience(scenario.profile, options), `${scenario.id} nondeterministic pay`);
+  const amounts = [...pay.components.map((component) => component.amount), pay.coordinatedPayTarget, pay.coordinatedTotal].filter((amount) => amount !== null && amount !== undefined);
+  assert(amounts.every((amount) => Number.isFinite(amount) && amount >= 0), scenario.id);
+  if (pay.coordinatedPayTarget !== null && pay.components.length) assert.equal(Math.round(pay.coordinatedTotal * 100), Math.round(pay.coordinatedPayTarget * 100), scenario.id);
+  assert(!JSON.stringify({ lifecycle, milestone, alerts, actions, returnExperience, pay, stateExperience }).match(/claim.?number|diagnos|symptom|treatment|source.?report|source.?record|status.?code/i), scenario.id);
+  assert.equal(returnExperience.title !== undefined, true);
+}
+console.log("Curated end-to-end demonstration profile validation passed.");

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import loaEmployeeAdvocateBanner from "./assets/loa-employee-advocate-banner.png";
 import { CONFLICTING_EMPLOYEE_IDS } from "./data/embeddedEmployeeRecords";
 import {
   normalizeEmployeeId,
@@ -11,25 +12,31 @@ import { getEmployeeDurationSummary } from "./data/durationUtils";
 import { getVerifiedEmployeeProfile } from "./data/verifiedEmployeeProfile";
 import {
   formatReturnToWorkDate,
-  getEmployeeReturnToWorkSummary,
-  RTW_NOT_AVAILABLE,
 } from "./data/rtwUtils";
 import { getEmployeePriorityActions } from "./data/actionPlanUtils";
 import { getEmployeeStatusSummary } from "./data/statusUtils";
 import { getEmployeeNextMilestone } from "./data/milestoneUtils";
 import { getEmployeeLifecycle } from "./data/lifecycleUtils";
-import { getEmployeePayTimeline } from "./data/payTimelineUtils";
+import { getEmployeeLeaveJourney } from "./data/leaveJourneyUtils";
+import { LeaveJourneyTimeline } from "./components/LeaveJourneyTimeline";
 import { getStateBenefitCoordination } from "./data/stateBenefitUtils";
+import { getEmployeeLifecycleAlerts } from "./data/lifecycleAlertUtils";
+import { getEmployeeReturnToWorkExperience } from "./data/returnToWorkExperience";
+import { getEmployeePayExperience } from "./data/payExperienceUtils";
+import { getEmployeePaySchedule } from "./data/payScheduleUtils";
+import { PAY_SCHEDULE_2026 } from "./data/paySchedule2026";
+import { getStateCoordinationExperience } from "./data/stateCoordinationExperience";
 import {
-  filterSupportResources,
-  getSupportResourceCategories,
-} from "./data/resourceUtils";
+  BENEFIT_RESOURCE_CATEGORIES,
+  BENEFIT_RESOURCES,
+  filterBenefitResources,
+} from "./data/benefitResources";
 
 const CONFLICTED_EMPLOYEE_IDS = new Set(
   CONFLICTING_EMPLOYEE_IDS.map((value) => normalizeEmployeeId(value))
 );
 
-const TEXT_NOT_AVAILABLE = "Not available in source report";
+const TEXT_NOT_AVAILABLE = "Not available";
 
 const safeText = (value, fallback = "") => {
   const text = String(value ?? "").trim();
@@ -54,12 +61,9 @@ const GENERIC_VERIFICATION_ERROR =
 const CONFLICT_VERIFICATION_ERROR =
   "We found a source record that requires administrative review before personalized information can be displayed. Please contact Twilio Leave Operations.";
 
-const SUCCESS_STATUS_MESSAGE =
-  "Thank you. I confirmed your first name, last name, and Employee ID against the authorized employee record. I can now help with the administrative information available in your leave record.";
-
 const TABS = [
-  ["todos", "✓", "Lifecycle To-Dos"],
-  ["payTimeline", "$", "Pay & Leave Timeline"],
+  ["todos", "✓", "To Do List"],
+  ["payTimeline", "$", "Your Pay"],
   ["rtw", "↻", "Return to Work"],
   ["resources", "◇", "Support Resources"],
   ["chat", "✦", "Ask Advocate"],
@@ -488,23 +492,13 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
     <>
       <header className="app-header">
         <div className="app-header__row">
-          <div className="app-brand">
-            <div className="app-brand__mark" aria-hidden="true">
-              ◆
-            </div>
-
-            <div className="app-brand__copy">
-              <div className="app-brand__title-row">
-                <h1 className="font-serif app-brand__title">
-                  Twilio LOA Employee Advocate
-                </h1>
-                <Badge tone="pink">Internal Demo</Badge>
-              </div>
-
-              <p className="app-brand__subtitle">
-                Personalized Leave Guidance, Pay Insights & Return-to-Work Support
-              </p>
-            </div>
+          <h1 className="sr-only">Twilio LOA Employee Advocate</h1>
+          <div className="app-banner">
+            <img
+              src={loaEmployeeAdvocateBanner}
+              alt="Twilio LOA Employee Advocate — Personalized Leave Guidance, Pay Insights and Return-to-Work Support — Internal Demo"
+              className="app-banner__image"
+            />
           </div>
 
           <nav className="app-actions" aria-label="Employee Advocate actions">
@@ -594,15 +588,15 @@ function SummaryCards({ employee }) {
     {
       label: "Next Milestone",
       value: milestone.hasMilestone ? milestone.label : TEXT_NOT_AVAILABLE,
-      note: milestone.hasMilestone ? milestone.date : TEXT_NOT_AVAILABLE,
-      details: milestone.hasMilestone ? `${milestone.timing} · Owner: ${milestone.owner} · ${milestone.basis}` : milestone.basis,
+      note: milestone.date || (milestone.label === "Submit your documentation" ? milestone.timing : "Date to be confirmed"),
+      details: milestone.hasMilestone ? `${milestone.timing}${milestone.status === "overdue" ? " · Overdue" : ""} · ${milestone.basis}` : milestone.basis,
       icon: "✎",
       color: "amber",
     },
     {
       label: "Est. Biweekly Base Pay",
       value: pay.hasPayData ? money(pay.biweeklySalary) : PAY_UNAVAILABLE_MESSAGE,
-      note: pay.hasPayData ? "Verified ATP salary input" : PAY_UNAVAILABLE_MESSAGE,
+      note: pay.hasPayData ? "Verified salary information" : PAY_UNAVAILABLE_MESSAGE,
       icon: "▦",
       color: "green",
     },
@@ -644,32 +638,13 @@ function SummaryCards({ employee }) {
               </p>
               <p className={`mt-2 truncate text-xs ${text}`}>{card.note}</p>
               {card.context && <p className={`mt-1 truncate text-xs ${text}`}>{card.context}</p>}
-              {card.statusDetails && (
-                <details className="mt-2 text-xs text-slate-400">
-                  <summary className="cursor-pointer font-semibold text-slate-300">Source details</summary>
-                  <dl className="mt-2 space-y-1">
-                    {[
-                      ["Raw status code", card.statusDetails.rawCode],
-                      ["Official status", card.statusDetails.officialDescription],
-                      ["Reason code", card.statusDetails.reasonCode],
-                    ].filter(([, value]) => value).map(([label, value]) => (
-                      <div key={label} className="flex justify-between gap-3">
-                        <dt>{label}</dt>
-                        <dd className="text-right text-slate-300">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </details>
-              )}
               {card.details && card.label === "Total Planned Duration" && (
                 <details className="mt-2 text-xs text-slate-400">
                   <summary className="cursor-pointer font-semibold text-slate-300">Duration details</summary>
                   <dl className="mt-2 space-y-1">
                     {[
-                      ["Source report", card.details.sourceSheet],
                       ["Begin date", card.details.startDate],
                       [card.details.endDateLabel, card.details.endDate],
-                      ["Calculation", card.details.calculationMethod],
                       ["Leave type", card.details.leaveType],
                       ["Leave reason", card.details.leaveReason],
                       ["Current status", card.details.status],
@@ -701,8 +676,8 @@ function PriorityActions({ employee }) {
 
   return (
     <Panel className="p-5 sm:p-6">
-      <h2 className="font-serif text-2xl font-bold">Your Three Priority Actions</h2>
-      <p className="mt-2 text-sm text-slate-400">The most important administrative steps based on your current leave record.</p>
+      <h2 className="font-serif text-2xl font-bold">Your Top Priority Actions</h2>
+            <p className="mt-2 text-sm text-slate-400">The most important steps based on your current leave information.</p>
       <div className="mt-5 grid gap-3 lg:grid-cols-3">
         {actions.map((item, index) => (
           <article key={item.id} className="flex min-w-0 flex-col rounded-xl border border-slate-700 bg-[#10172a] p-4">
@@ -712,16 +687,21 @@ function PriorityActions({ employee }) {
             </div>
             <p className="mt-3 text-sm leading-5 text-slate-300">{item.description}</p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full border border-[#38425E] px-2.5 py-1 text-[#9AA0B4]">{item.owner}</span>
               <span className="text-[#9AA0B4]">{item.timing}</span>
             </div>
             <p className="mt-3 text-xs leading-5 text-[#656E87]">{item.basis}</p>
-            {item.destination && <a className="mt-auto inline-flex pt-4 text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]" href={item.destination} target="_blank" rel="noreferrer">Open authorized process <span className="ml-1" aria-hidden="true">↗</span></a>}
+            {item.destination && <a className="mt-auto inline-flex pt-4 text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]" href={item.destination} target="_blank" rel="noreferrer">Open next step <span className="ml-1" aria-hidden="true">↗</span></a>}
           </article>
         ))}
       </div>
     </Panel>
   );
+}
+
+function LifecycleAlerts({ employee }) {
+  const alerts = getEmployeeLifecycleAlerts(employee);
+  if (!alerts.length) return null;
+  return <section aria-labelledby="leave-alerts-heading" className="space-y-3"><h2 id="leave-alerts-heading" className="font-serif text-2xl font-bold">Important leave updates</h2>{alerts.map((alert) => <Panel key={alert.id} className={`border-l-4 ${alert.severity === "high" ? "border-l-rose-500" : "border-l-amber-400"} p-5`}><h3 className="text-base font-bold">{alert.title}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{alert.description}</p><a className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#1B66EE] px-4 py-2 text-sm font-bold text-white hover:bg-[#3D7FF2]" href={alert.destination} target="_blank" rel="noreferrer">{alert.actionLabel}<span className="ml-2" aria-hidden="true">↗</span></a></Panel>)}</section>;
 }
 
 function TabBar({ active, setActive }) {
@@ -754,249 +734,8 @@ function TabBar({ active, setActive }) {
   );
 }
 
-function Responsibility({ title, tone, items, contact }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-[#10172a] p-4">
-      <h4
-        className={`text-xs font-bold uppercase tracking-wider ${
-          tone === "cyan" ? "text-cyan-300" : "text-rose-300"
-        }`}
-      >
-        {title}
-      </h4>
-
-      <ul className="mt-3 space-y-2 text-sm text-slate-300">
-        {items.map((item) => (
-          <li key={item}>• {item}</li>
-        ))}
-      </ul>
-
-      <div className="mt-4 border-t border-slate-700/70 pt-3 text-xs text-slate-400">
-        {contact}
-      </div>
-    </div>
-  );
-}
-
-function TodosTab({ employee }) {
-  const [stage, setStage] = useState("all");
-  const [checked, setChecked] = useState({});
-
-  const toggle = (id) =>
-    setChecked((current) => ({ ...current, [id]: !current[id] }));
-
-  const leaveProductText = safeText(employee?.leaveProduct);
-  const stages = [
-    {
-      id: "pre",
-      title: "Stage 1: Pre-Leave Planning",
-      subtitle: "Milestone & Administrative Setup",
-      timing: "30–60 days prior",
-      tone: "cyan",
-      items: [
-        "File the formal leave intake with Lincoln Financial through MyLincoln Portal or 800-377-1568.",
-        leaveProductText
-          ? `Confirm the leave product shown on file: ${leaveProductText}.`
-          : "Leave product is not available in the source report.",
-        "Notify your manager and HRBP of the expected start date and business handoff timeline—no medical details needed.",
-        "Set Workday and Ramp delegations and prepare your out-of-office message.",
-      ],
-    },
-    {
-      id: "med",
-      title: "Stage 2: Medical Documentation",
-      subtitle: "Lincoln Financial Certification Tracking",
-      timing: "15 calendar-day deadline",
-      tone: "amber",
-      items: [
-        "Day 1: Confirm the intake acknowledgment reached your email.",
-        "Days 2–5: Watch for the specialist call and COM01/COM02 correspondence.",
-        "Upload complete certification by Day 15; confirm receipt in the portal.",
-        "If incomplete documents were submitted on Days 13–15, verify whether the one-time 7-day grace period applies.",
-      ],
-    },
-    {
-      id: "handoff",
-      title: "Stage 3: Three-Day Handoff",
-      subtitle: "Final Business Readiness",
-      timing: "3 days before leave",
-      tone: "violet",
-      items: [
-        "Confirm project owners, escalation contacts, and manager coverage.",
-        "Verify Workday and Ramp delegation activation dates.",
-        "Schedule out-of-office notifications without medical or claim details.",
-      ],
-    },
-    {
-      id: "return",
-      title: "Stage 4: Welcome Back & RTW",
-      subtitle: "Return-to-Work Readiness",
-      timing: "Before return",
-      tone: "green",
-      items: [
-        "Confirm Lincoln has your release to return, when required.",
-        "Coordinate access restoration, calendar reset, and a phased hand-back with your manager.",
-        "If workplace adjustments may help, use the optional workplace support section in Return to Work.",
-      ],
-    },
-  ];
-
-  const visible =
-    stage === "all" ? stages : stages.filter((item) => item.id === stage);
-
-  return (
-    <div className="space-y-5">
-      <Panel className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="font-serif text-xl font-bold">
-            📍 Interactive Leave Lifecycle Journey
-          </h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Filter the checklist by stage and mark completed tasks locally.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {[
-            ["all", "All Stages"],
-            ["pre", "1. Pre-Leave"],
-            ["med", "2. Med Cert"],
-            ["handoff", "3. Handoff"],
-            ["return", "4. RTW"],
-          ].map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setStage(id)}
-              className={`rounded-lg px-3 py-2 text-xs font-semibold ${
-                stage === id
-                  ? "bg-rose-500 text-white"
-                  : "border border-slate-700 bg-slate-800/50 text-slate-300 hover:border-slate-500"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </Panel>
-
-      <div className="grid gap-5 xl:grid-cols-[1.05fr_.95fr]">
-        <div className="space-y-5">
-          {visible.map((item) => (
-            <Panel
-              key={item.id}
-              className={`border-l-4 p-5 ${
-                item.tone === "cyan"
-                  ? "border-l-cyan-400"
-                  : item.tone === "amber"
-                    ? "border-l-amber-400"
-                    : item.tone === "violet"
-                      ? "border-l-violet-400"
-                      : "border-l-emerald-400"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <Badge tone={item.tone}>{item.title}</Badge>
-                <span className="text-xs text-slate-400">
-                  ◷ {item.timing}
-                </span>
-              </div>
-
-              <h3 className="mt-4 text-base font-bold">{item.subtitle}</h3>
-
-              <div className="mt-3">
-                {item.items.map((text, index) => {
-                  const id = `${item.id}-${index}`;
-
-                  return (
-                    <CheckItem
-                      key={id}
-                      checked={Boolean(checked[id])}
-                      onChange={() => toggle(id)}
-                      accent={item.tone}
-                    >
-                      {text}
-                    </CheckItem>
-                  );
-                })}
-              </div>
-            </Panel>
-          ))}
-        </div>
-
-        <div className="space-y-5">
-          <Panel className="p-5">
-            <h3 className="font-serif text-lg font-bold">
-              ♟ Administration Responsibility Matrix
-            </h3>
-            <p className="mt-1 text-xs text-slate-400">
-              Who owns each part of your leave experience.
-            </p>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-              <Responsibility
-                title="Lincoln Financial"
-                tone="cyan"
-                items={[
-                  "Claim intake and certification review",
-                  "Eligibility and claim decisions",
-                  "Disability benefit calculation",
-                  "Case manager communications",
-                ]}
-                contact="800-377-1568 · MyLincoln Portal"
-              />
-
-              <Responsibility
-                title="Twilio Internal Ops"
-                tone="pink"
-                items={[
-                  "Salary top-up on payroll",
-                  "Workday leave-status updates",
-                  "Ramp and system access delegation",
-                  "RTW and accommodation coordination",
-                ]}
-                contact="leave-ops@twilio.com"
-              />
-            </div>
-          </Panel>
-
-          <StateStatutoryCard employee={employee} />
-
-          <Panel className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="font-serif text-lg font-bold">Profile Snapshot</h3>
-              <Badge tone="green">Verified</Badge>
-            </div>
-
-            <dl className="mt-4 divide-y divide-slate-700/70 text-sm">
-              {[
-                ["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],
-                ["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],
-                [
-                  "Plan dates",
-                  `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`,
-                ],
-                ["Annual base salary", "Pay information is not available in this source report."],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-start justify-between gap-6 py-3"
-                >
-                  <dt className="text-slate-400">{label}</dt>
-                  <dd className="text-right font-semibold text-slate-100">
-                    {value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleItem }) {
-  const panelId = `lifecycle-panel-${stage.id}`;
+function LifecycleStagePanel({ stage, checked, onToggleItem }) {
+  const panelId = `lifecycle-stage-panel-${stage.id}`;
   const completed = stage.items.filter((item) => checked[item.id]).length;
   const accents = {
     cyan: "border-l-cyan-400 text-cyan-300",
@@ -1006,92 +745,61 @@ function LifecycleAccordion({ stage, isOpen, checked, onToggleStage, onToggleIte
   };
 
   return (
-    <section className={`rounded-xl border border-slate-700 border-l-4 bg-[#0F1830]/90 ${accents[stage.accent].split(" ")[0]}`}>
-      <h3>
-        <button
-          type="button"
-          id={`${panelId}-header`}
-          aria-expanded={isOpen}
-          aria-controls={panelId}
-          aria-label={`${isOpen ? "Collapse" : "Expand"} ${stage.title}`}
-          onClick={() => onToggleStage(stage.id)}
-          className="flex min-h-16 w-full items-center justify-between gap-4 p-4 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-        >
-          <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-sm font-bold">{stage.number}. {stage.title}</span>
-            <span className="text-xs text-slate-400">{stage.timeframe}</span>
-            {stage.status === "suggested" && <Badge tone="green">Suggested from your current record</Badge>}
-          </span>
-          <span className="flex shrink-0 items-center gap-3 text-xs text-slate-400">
-            <span>{completed} of {stage.items.length} reviewed</span>
-            <span aria-hidden="true" className={`text-xl transition-transform ${isOpen ? "rotate-180" : ""}`}>⌄</span>
-          </span>
-        </button>
-      </h3>
-      {isOpen && (
-        <div id={panelId} role="region" aria-labelledby={`${panelId}-heading`} className="border-t border-slate-700 p-4">
-          <span id={`${panelId}-heading`} className="sr-only">{stage.title} details</span>
-          <p className="text-sm leading-6 text-slate-300">{stage.description}</p>
-          <p className="mt-2 text-xs text-slate-400">{stage.basis}</p>
-          <div className="mt-3 space-y-1">
-            {stage.items.map((item) => (
-              <CheckItem key={item.id} checked={Boolean(checked[item.id])} onChange={() => onToggleItem(item.id)}>
-                <span className="block font-semibold">{item.title}</span>
-                <span className="mt-1 block text-slate-300">{item.description}</span>
-                <span className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-cyan-300">
-                  <span>Owner: {item.owner}</span><span>{item.timing}</span>
-                </span>
-                {item.dependency && <span className="mt-1 block text-xs text-amber-300">Dependency: {item.dependency}</span>}
-                {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open authorized process <span aria-hidden="true">↗</span></a>}
-              </CheckItem>
-            ))}
-          </div>
-        </div>
-      )}
+    <section id={panelId} role="tabpanel" aria-labelledby={`lifecycle-stage-tab-${stage.id}`} className={`mt-4 rounded-xl border border-slate-700 border-l-4 bg-[#0F1830]/90 p-4 ${accents[stage.accent].split(" ")[0]}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h3 className="text-sm font-bold">{stage.number}. {stage.title}</h3><p className="mt-1 text-xs text-slate-400">{stage.timeframe}</p></div>
+        <span className="text-xs text-slate-400">{completed} of {stage.items.length} reviewed</span>
+      </div>
+      <p className="mt-4 text-sm leading-6 text-slate-300">{stage.description}</p>
+      <p className="mt-2 text-xs text-slate-400">{stage.basis}</p>
+      <div className="mt-3 space-y-1">
+        {stage.items.map((item) => (
+          <CheckItem key={item.id} checked={Boolean(checked[item.id])} onChange={() => onToggleItem(item.id)}>
+            <span className="block font-semibold">{item.title}</span>
+            <span className="mt-1 block text-slate-300">{item.description}</span>
+            <span className="mt-2 block text-xs text-cyan-300">{item.timing}</span>
+            {item.destination && <a href={item.destination} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-bold text-[#1B66EE] hover:text-[#72A5FF]">Open next step <span aria-hidden="true">↗</span></a>}
+          </CheckItem>
+        ))}
+      </div>
     </section>
   );
 }
 
-function LifecycleOverview({ employee }) {
+export function LifecycleOverview({ employee }) {
   const lifecycle = getEmployeeLifecycle(employee);
-  const [openStages, setOpenStages] = useState(() => new Set([lifecycle.suggestedStageId || "pre-leave"]));
+  const journey = getEmployeeLeaveJourney(employee);
+  const [selectedStageId, setSelectedStageId] = useState(() => lifecycle.suggestedStageId || lifecycle.stages[0]?.id);
   const [checked, setChecked] = useState({});
 
   useEffect(() => {
-    setOpenStages(new Set([lifecycle.suggestedStageId || "pre-leave"]));
+    setSelectedStageId(lifecycle.suggestedStageId || lifecycle.stages[0]?.id);
     setChecked({});
   }, [employee?.employeeId]);
 
-  const toggleStage = (id) => setOpenStages((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  });
-  const setAllStages = (open) => setOpenStages(open ? new Set(lifecycle.stages.map((stage) => stage.id)) : new Set());
-  const focusStage = (id) => {
-    setOpenStages((current) => new Set(current).add(id));
-    window.requestAnimationFrame(() => document.getElementById(`lifecycle-panel-${id}-header`)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  const selectedStage = lifecycle.stages.find((stage) => stage.id === selectedStageId) || lifecycle.stages[0];
+  const selectStage = (id) => setSelectedStageId(id);
+  const moveTabFocus = (event, index) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? lifecycle.stages.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + lifecycle.stages.length) % lifecycle.stages.length;
+    const nextStage = lifecycle.stages[nextIndex];
+    selectStage(nextStage.id);
+    document.getElementById(`lifecycle-stage-tab-${nextStage.id}`)?.focus();
   };
 
   return (
     <div className="space-y-5">
+      <LeaveJourneyTimeline journey={journey} />
       <Panel className="p-5 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div><h2 className="font-serif text-2xl font-bold">Interactive Leave Lifecycle Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage, track your administrative steps, and see who owns the next action.</p></div>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setAllStages(true)} className="app-button app-button--secondary">Expand all</button><button type="button" onClick={() => setAllStages(false)} className="app-button app-button--tertiary">Collapse all</button></div>
+        <div><h2 className="font-serif text-2xl font-bold">Your Leave Journey</h2><p className="mt-1 text-sm text-slate-400">Review each stage and track your next steps.</p></div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" role="tablist" aria-label="Lifecycle stages">
+          {lifecycle.stages.map((stage, index) => <button type="button" role="tab" id={`lifecycle-stage-tab-${stage.id}`} aria-selected={selectedStage.id === stage.id} aria-controls={`lifecycle-stage-panel-${stage.id}`} tabIndex={selectedStage.id === stage.id ? 0 : -1} key={stage.id} onClick={() => selectStage(stage.id)} onKeyDown={(event) => moveTabFocus(event, index)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${selectedStage.id === stage.id ? "border-cyan-300 bg-cyan-400/10 text-white" : "border-slate-700 text-slate-300 hover:border-slate-500"} ${stage.status === "suggested" ? "ring-1 ring-emerald-400/50" : ""}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal text-emerald-200">Recommended stage</span>}</button>)}
         </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-4" aria-label="Lifecycle stages">
-          {lifecycle.stages.map((stage) => <button type="button" key={stage.id} onClick={() => focusStage(stage.id)} className={`min-h-11 rounded-lg border px-3 py-2 text-left text-xs font-bold focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${stage.status === "suggested" ? "border-emerald-400/70 bg-emerald-400/10 text-emerald-200" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}><span className="block">{stage.number}. {stage.shortLabel}</span>{stage.status === "suggested" && <span className="mt-1 block text-[10px] font-normal">Suggested stage</span>}</button>)}
-        </div>
-        {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified from the source record. Stage 1 is open for orientation.</p>}
-        <div className="mt-4 space-y-3">{lifecycle.stages.map((stage) => <LifecycleAccordion key={stage.id} stage={stage} isOpen={openStages.has(stage.id)} checked={checked} onToggleStage={toggleStage} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />)}</div>
-        <p className="mt-4 text-xs text-slate-400">Checklist selections are for this demo session only and do not update Workday or Lincoln Financial.</p>
+        {!lifecycle.hasSuggestedStage && <p className="mt-3 text-xs text-slate-400">No current stage is identified. Stage 1 is open for orientation.</p>}
+        {selectedStage && <LifecycleStagePanel stage={selectedStage} checked={checked} onToggleItem={(id) => setChecked((current) => ({ ...current, [id]: !current[id] }))} />}
+        <p className="mt-4 text-xs text-slate-400">Your checked items are saved only for this session and do not update Workday or Lincoln Financial.</p>
       </Panel>
-      <div className="space-y-5">
-        <Panel className="p-5"><h3 className="font-serif text-lg font-bold">Administration Responsibility Matrix</h3><p className="mt-1 text-xs text-slate-400">Who owns each part of your leave experience.</p><div className="mt-4 grid gap-4 md:grid-cols-3"><Responsibility title="Lincoln Financial" tone="cyan" items={["Claim intake and certification review", "Case manager communications", "Authorized documentation process"]} contact="800-377-1568 · MyLincoln Portal" /><Responsibility title="Twilio Leave Operations / Payroll" tone="pink" items={["Salary top-up on payroll", "Workday leave-status updates", "RTW and accommodation coordination"]} contact="leave-ops@twilio.com" /><Responsibility title="Employee / Manager" tone="cyan" items={["Business handoff and priorities", "Calendar and delegation planning", "Return-to-work reintegration"]} contact="Coordinate through your manager and Twilio Leave Operations" /></div></Panel>
-        <StateStatutoryCard employee={employee} />
-        <Panel className="p-5"><div className="flex items-center justify-between gap-3"><h3 className="font-serif text-lg font-bold">Profile Snapshot</h3><Badge tone="green">Verified</Badge></div><dl className="mt-4 divide-y divide-slate-700/70 text-sm">{[["Leave product", safeText(employee?.leaveProduct, TEXT_NOT_AVAILABLE)],["Claim status", safeText(employee?.claimStatus, TEXT_NOT_AVAILABLE)],["Plan dates", `${safeText(employee?.startDate, TEXT_NOT_AVAILABLE)} — ${safeText(employee?.endDate, TEXT_NOT_AVAILABLE)}`],["Annual base salary", "Pay information is not available in this source report."]].map(([label, value]) => <div key={label} className="flex items-start justify-between gap-6 py-3"><dt className="text-slate-400">{label}</dt><dd className="text-right font-semibold text-slate-100">{value}</dd></div>)}</dl></Panel>
-      </div>
     </div>
   );
 }
@@ -1099,50 +807,15 @@ function LifecycleOverview({ employee }) {
 const PAY_DISCLAIMER = "Informational guidance based on the available Twilio policy and calculator rules. Pay and benefit amounts are estimates and may be affected by eligibility, plan maximums, state benefits, payroll timing, deductions, taxes, and applicable offsets. Lincoln Financial, Twilio Leave Operations, and the applicable government agency make the official claim, eligibility, and benefit determinations. This is not legal, tax, or medical advice.";
 
 const displayDate = (value) => value ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)) : TEXT_NOT_AVAILABLE;
-const displayMoney = (value) => value == null ? TEXT_NOT_AVAILABLE : money(value);
+const displayPayPeriod = (start, end) => {
+  const format = (value) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+  return `${format(start).replace(/, \d{4}$/, "")}-${format(end)}`;
+};
 
 function PayTimelineTab({ employee }) {
-  const model = getEmployeePayTimeline(employee, { asOfDate: "2026-08-26" });
-  const source = model.sourcePayValues;
-  const planning = model.planningEstimate;
-  const stateBenefit = model.stateBenefit;
-  const status = model.hasPayData ? model.missingInformation.length ? "Partial source data" : "Source data available" : "Information unavailable";
-  const statusTone = model.hasPayData ? model.missingInformation.length ? "amber" : "green" : "amber";
-  const summaryCards = [
-    ["Biweekly Base-Pay Target", planning?.basePayTarget, "Source salary target", "The maximum coordinated gross target for this pay period."],
-    ["Assumed State Benefit Offset", stateBenefit.assumedStateOffset, stateBenefit.sourceAmountType === "source-recorded" ? "Source-recorded" : "Planning assumption—not state approval", "Maximum used pending state award."],
-    ["Lincoln Estimate After State Offset", planning?.lincolnNetAfterStateOffset, "Planning estimate", "Gross Lincoln estimate less the applicable state offset."],
-    ["Twilio Estimated Top-Up", planning?.twilio?.amount, "Planning estimate", "Remaining amount toward the base-pay target after confirmed offsets."],
-  ];
-
-  return (
-    <div className="space-y-5">
-      <Panel className="p-6 sm:p-7">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay and Leave Timeline</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review source-backed pay information, planning estimates, and important dates from your leave record.</p></div>
-          <Badge tone={statusTone}>{status}</Badge>
-        </div>
-      </Panel>
-
-      <section aria-labelledby="pay-overview-heading">
-        <div className="mb-3 flex items-end justify-between gap-3"><h3 id="pay-overview-heading" className="font-serif text-2xl font-bold">Pay overview</h3><span className="text-xs text-slate-400">Source values and estimates are labeled</span></div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map(([label, value, kind, explanation]) => <Panel key={label} className="p-5"><dt className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-3 text-xl font-bold">{displayMoney(value)}</dd>{kind && <div className="mt-2 text-xs font-semibold text-[#72A5FF]">{kind}</div>}<p className="mt-3 text-xs leading-5 text-slate-400">{explanation}</p></Panel>)}
-        </div>
-      </section>
-
-      {planning && <Panel className="p-6" aria-labelledby="composition-heading"><h3 id="composition-heading" className="font-serif text-2xl font-bold">Pay composition</h3><p className="mt-1 text-sm text-slate-400">Planning estimate coordinated to the biweekly base-pay target.</p><div className="mt-5 flex h-12 overflow-hidden rounded-lg border border-[#38425E]" role="img" aria-label={`Pay composition: State assumed maximum ${money(stateBenefit.assumedStateOffset)}, Lincoln after state offset ${money(planning.lincolnNetAfterStateOffset)}, Twilio top-up ${money(planning.twilio.amount)}`}><div className="flex items-center justify-center bg-[#F59E0B] px-2 text-center text-xs font-bold" style={{ width: `${(stateBenefit.assumedStateOffset / planning.basePayTarget) * 100}%` }}>State assumed maximum</div><div className="flex items-center justify-center bg-[#1B66EE] px-2 text-center text-xs font-bold" style={{ width: `${(planning.lincolnNetAfterStateOffset / planning.basePayTarget) * 100}%` }}>Lincoln after state offset</div><div className="flex items-center justify-center bg-[#EF223A] px-2 text-center text-xs font-bold" style={{ width: `${(planning.twilio.amount / planning.basePayTarget) * 100}%` }}>Twilio top-up</div></div><div className="mt-4 grid gap-2 text-sm sm:grid-cols-3"><div><strong className="text-amber-300">State assumed maximum:</strong> {money(stateBenefit.assumedStateOffset)}</div><div><strong className="text-[#72A5FF]">Lincoln after state offset:</strong> {money(planning.lincolnNetAfterStateOffset)}</div><div><strong className="text-[#FF8792]">Twilio top-up:</strong> {money(planning.twilio.amount)}</div></div><p className="mt-3 text-xs text-slate-400">Components are coordinated toward {money(planning.basePayTarget)}; state amounts are planning assumptions until an award is recorded.</p></Panel>}
-
-      {planning && <Panel className="p-6" aria-labelledby="reconciliation-heading"><h3 id="reconciliation-heading" className="font-serif text-2xl font-bold">Pending State Award Reconciliation</h3><dl className="mt-4 space-y-3 text-sm"><PayRow label="Award status" value={stateBenefit.awardStatus} /><PayRow label="Assumed State Benefit Offset" value={money(stateBenefit.assumedStateOffset)} /><PayRow label="Actual state award" value={stateBenefit.actualStateAward == null ? TEXT_NOT_AVAILABLE : money(stateBenefit.actualStateAward)} /><PayRow label="Estimated Lincoln reconciliation" value={money(stateBenefit.lincolnReconciliation)} highlight /></dl><div className="mt-5 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100"><strong>Award-letter submission instructions:</strong> Submit the state award letter through the authorized Lincoln process and notify Twilio Leave Operations / Payroll. A pending, denied, or missing claim does not create a reconciliation. <strong>Responsible party:</strong> Employee submits the letter; Lincoln Financial records the award and determines the reconciliation; Twilio Leave Operations / Payroll coordinates payroll.</div></Panel>}
-
-      <Panel className="p-6" aria-labelledby="dates-heading"><div className="flex items-end justify-between gap-3"><div><h3 id="dates-heading" className="font-serif text-2xl font-bold">Important dates</h3><p className="mt-1 text-sm text-slate-400">Dates retain their source labels and ownership.</p></div>{model.nextMilestone?.hasMilestone && <span className="text-xs text-[#72A5FF]">Next: {model.nextMilestone.label}</span>}</div>{model.timelineEvents.length ? <ol className="mt-5 space-y-4 border-l border-[#38425E] pl-5">{model.timelineEvents.map((event) => <li key={event.id} className="relative"><span className={`absolute -left-[25px] top-1.5 h-2.5 w-2.5 rounded-full ${event.status === "past" ? "bg-[#656E87]" : event.status === "current" ? "bg-[#EF223A]" : "bg-[#1B66EE]"}`} /><div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"><strong>{event.label}</strong><time dateTime={event.date} className="text-sm font-semibold text-[#72A5FF]">{displayDate(event.date)}</time></div><div className="mt-1 text-xs text-slate-400">{event.owner}{event.source ? ` · ${event.source}` : ""}{event.conflict ? " · Source dates conflict" : ""}</div></li>)}</ol> : <p className="mt-5 rounded-lg border border-[#38425E] p-4 text-sm text-slate-400">No reliable source-backed timeline events are available.</p>}</Panel>
-
-      {model.timelineRanges.length > 0 && <Panel className="p-6" aria-labelledby="window-heading"><h3 id="window-heading" className="font-serif text-2xl font-bold">Leave window</h3>{model.timelineRanges.map((range) => <div key={range.id} className="mt-4"><div className="grid gap-3 sm:grid-cols-2"><div><span className="text-xs uppercase tracking-wider text-slate-400">{range.startLabel}</span><strong className="mt-1 block">{displayDate(range.startDate)}</strong></div><div><span className="text-xs uppercase tracking-wider text-slate-400">{range.endLabel}</span><strong className="mt-1 block">{displayDate(range.endDate)}</strong></div></div><div className="mt-4 h-4 rounded-full border border-[#38425E] bg-[#10172a]"><div className="h-full w-full rounded-full bg-[#1B66EE]" /></div><p className="mt-3 text-sm text-slate-300">{range.durationDays} days · {range.durationWeeks.toFixed(1)} weeks · {range.context || "Source record"}</p><p className="mt-1 text-xs text-slate-400">Source: {range.source || TEXT_NOT_AVAILABLE}</p></div>)}</Panel>}
-
-      <Panel className="p-6"><details><summary className="cursor-pointer list-none text-lg font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-[#72A5FF]">How this estimate works</summary><div className="mt-4 space-y-3 text-sm leading-6 text-slate-300"><p><strong>Formula:</strong> {planning ? "STD planning uses biweekly base salary ÷ 10 for the daily business-day rate; days 1–7 use five eligible business days, then 66.67% Lincoln and 33.33% Twilio planning components." : "No planning formula is applied to this record classification."}</p><p><strong>Source fields:</strong> {source ? `${source.sourceSheet || TEXT_NOT_AVAILABLE}; biweekly salary, product, benefit fields, and pay-period dates.` : TEXT_NOT_AVAILABLE}</p><p><strong>Missing information:</strong> {model.missingInformation.length ? model.missingInformation.join(" ") : "No additional model-level gaps identified."}</p><p><strong>Administrative owner:</strong> Lincoln Financial determines claims and benefits; Twilio Leave Operations and Payroll handle applicable internal administration.</p><p>Source record values are reported fields. Planning estimates are calculations and do not establish eligibility, approval, payment, or job protection.</p></div></details></Panel>
-      <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">{PAY_DISCLAIMER}</p>
-    </div>
-  );
+  const experience = getEmployeePayExperience(employee, { asOfDate: "2026-08-26" });
+  const schedule = getEmployeePaySchedule(employee, { asOfDate: "2026-08-26" });
+  return <><PayExperienceLayout experience={experience} schedule={schedule} /><StateStatutoryCard employee={employee} /></>;
 }
 
 function PayRow({ label, value, highlight }) {
@@ -1162,204 +835,57 @@ function PayRow({ label, value, highlight }) {
   );
 }
 
-function PayTab({ employee }) {
-  const pay = getEmployeePaySummary(employee);
+function PaymentTimingCard({ schedule }) {
+  const [open, setOpen] = useState(false);
+  const longDate = (value) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+  const matched = schedule.status === "matched";
+  const fullSchedule = <><button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="mt-5 flex w-full items-center justify-between rounded-lg border border-[#38425E] px-4 py-3 text-sm font-bold">View the full 2026 leave pay schedule <span aria-hidden="true">{open ? "v" : ">"}</span></button>{open && <div className="mt-3 space-y-2">{PAY_SCHEDULE_2026.map((row) => <div key={row.payPeriodNumber} className={`grid gap-1 rounded-lg border p-3 text-xs sm:grid-cols-5 ${matched && row.payPeriodNumber === schedule.payPeriodNumber ? "border-[#1B66EE] bg-[#1B66EE]/10" : "border-[#38425E]"}`}><span>Pay period {row.payPeriodNumber}</span><span>{longDate(row.payPeriodStart)}</span><span>{longDate(row.payPeriodEnd)}</span><span>{longDate(row.leaveApprovalCutoff)}</span><span className="text-emerald-300">{longDate(row.payDate)}</span></div>)}</div>}<p className="mt-4 text-xs text-slate-400">Planning guidance—not a payment guarantee.</p></>;
 
-  if (!pay.hasPayData) {
-    return (
-      <Panel className="p-6">
-        <Badge tone="amber">Pay record unavailable</Badge>
-        <h2 className="mt-4 font-serif text-2xl font-bold">Legacy pay record view</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-300">
-          {PAY_UNAVAILABLE_MESSAGE}
-        </p>
-      </Panel>
-    );
-  }
+  if (!matched) return <Panel className="p-6"><h3 className="font-serif text-xl font-bold">When you can expect payment</h3><p className="mt-3 text-sm leading-6 text-slate-300">{schedule.employeeMessage}</p>{schedule.supportingGuidance && <p className="mt-2 text-sm leading-6 text-slate-300">{schedule.supportingGuidance}</p>}{fullSchedule}</Panel>;
 
-  const [offset, setOffset] = useState(Number(employee.stateOffset ?? 0));
-  const annualSalary = Number(employee.annualSalary ?? 0);
-  const biweeklySalary = pay.biweeklySalary;
-  const daily = biweeklySalary / 10;
-  const epPay = daily * 5;
-  const disability = biweeklySalary * 0.6667;
-  const topUp = biweeklySalary - disability;
-  const netDisability = Math.max(
-    0,
-    disability - Number(offset || 0)
-  );
-  const coordinated =
-    netDisability + topUp + Number(offset || 0);
+  const period = `${longDate(schedule.payPeriodStart).replace(/, 2026$/, "")}-${longDate(schedule.payPeriodEnd)}`;
+  const badge = `CUTOFF ${schedule.cutoffStatus.toUpperCase()}`;
+  const message = schedule.employeeMessage;
+  return <Panel className="p-6"><div className="flex items-start justify-between gap-4"><h3 className="font-serif text-xl font-bold">When you can expect payment</h3><Badge tone={schedule.cutoffStatus === "passed" ? "amber" : schedule.cutoffStatus === "today" ? "pink" : "green"}>{badge}</Badge></div><dl className="mt-5 grid overflow-hidden rounded-lg border border-[#38425E] sm:grid-cols-2"><div className="border-b border-[#38425E] p-4 sm:border-r"><dt className="text-xs text-slate-400">Leave approval date</dt><dd className="mt-1 font-bold">{longDate(schedule.approvalDate)}</dd></div><div className="border-b border-[#38425E] p-4"><dt className="text-xs text-slate-400">Pay period</dt><dd className="mt-1 font-bold">{period}</dd></div><div className="border-b border-[#38425E] p-4 sm:border-r"><dt className="text-xs text-slate-400">Approval cutoff</dt><dd className="mt-1 font-bold">{longDate(schedule.leaveApprovalCutoff)}</dd></div><div className="border-b border-[#38425E] p-4"><dt className="text-xs text-slate-400">Expected Twilio pay date</dt><dd className="mt-1 font-bold text-emerald-300">{longDate(schedule.payDate)}</dd></div><div className="p-4"><dt className="text-xs text-slate-400">Pay period number</dt><dd className="mt-1 font-bold">{schedule.payPeriodNumber} of 26</dd></div></dl><p className="mt-4 rounded-lg border border-[#38425E] p-4 text-sm leading-6 text-slate-300">{message}</p><p className="mt-4 text-xs leading-5 text-slate-400">This schedule applies to leave-related payments processed through Twilio Payroll. State agencies may use a different payment schedule.</p><p className="mt-2 text-xs leading-5 text-slate-400">Payment timing may change if approval, payroll corrections, or required information is still pending.</p>{fullSchedule}</Panel>;
+}
 
+export function PayExperienceLayout({ experience, schedule = { status: "approval-date-missing", employeeMessage: "Your approval date is not available yet.", supportingGuidance: "Once your leave is approved, the approval date can be used to identify the expected Twilio payroll cycle." } }) {
+  const isStd = experience.scenario === "std";
+  const chartTotal = Number(experience.coordinatedTotal || experience.coordinatedPayTarget || 0);
+  const segments = experience.components.filter((component) => component.amount > 0).map((component) => ({
+    ...component,
+    width: chartTotal > 0 ? Math.max(0, component.amount / chartTotal * 100) : 0,
+    tone: component.label === "State benefit estimate" ? "bg-amber-400" : component.label === "Short-Term Disability estimate" ? "bg-blue-500" : "bg-rose-500",
+  }));
   return (
-    <div className="grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
-      <div className="space-y-5">
-        <Panel className="p-6">
-          <Badge tone="green">Verified salary input</Badge>
-
-          <h2 className="mt-4 font-serif text-2xl font-bold">
-            Legacy pay calculation
-          </h2>
-
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Transparent estimates based on {employee.firstName}’s salary
-            record. Taxes, deductions, eligibility, and agency awards can
-            change final pay.
-          </p>
-
-          <dl className="mt-6 space-y-3">
-            <PayRow
-              label="Annual base salary"
-              value={employee.annualSalary == null ? "Not available in source report" : money(employee.annualSalary)}
-            />
-            <PayRow
-              label="Biweekly base salary"
-              value={money(pay.biweeklySalary)}
-              highlight
-            />
-            <PayRow
-              label="ATP calculated salary amount (source)"
-              value={pay.payableCalculatedSalaryAmount == null ? "Not available in source report" : money(pay.payableCalculatedSalaryAmount)}
-            />
-            <PayRow label="ATP product (source)" value={safeText(pay.product, "Not available in source report")} />
-            <PayRow label="ATP pay code (source)" value={safeText(pay.payCode, "Not available in source report")} />
-            <PayRow
-              label="ATP benefit gross amount (source)"
-              value={pay.benefitGrossAmount == null ? "Not available in source report" : money(pay.benefitGrossAmount)}
-            />
-            <PayRow
-              label="ATP total offsets (source)"
-              value={pay.totalOffsets == null ? "Not available in source report" : money(pay.totalOffsets)}
-            />
-            <PayRow
-              label="ATP payable benefit percentage (source)"
-              value={pay.payableBenefitPercentage == null ? "Not available in source report" : `${pay.payableBenefitPercentage}%`}
-            />
-            <PayRow
-              label="ATP pay period (source)"
-              value={pay.payPeriodFromDate && pay.payPeriodThroughDate ? `${pay.payPeriodFromDate} — ${pay.payPeriodThroughDate}` : "Not available in source report"}
-            />
-            <PayRow
-              label="Estimated daily base rate"
-              value={money(daily)}
-            />
-          </dl>
-        </Panel>
-
-        <Panel className="p-6">
-          <label
-            className="block text-xs font-bold uppercase tracking-wider text-slate-400"
-            htmlFor="offset"
-          >
-            Estimated state benefit offset
-          </label>
-
-          <div className="mt-3 flex rounded-xl border border-slate-600 bg-[#10172a] focus-within:border-cyan-400">
-            <span className="px-4 py-3 text-slate-500">$</span>
-            <input
-              id="offset"
-              type="number"
-              min="0"
-              step="0.01"
-              value={offset}
-              onChange={(event) => setOffset(event.target.value)}
-              className="w-full bg-transparent py-3 pr-4 text-white outline-none"
-            />
-          </div>
-
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            Enter the award expected for the same biweekly period. This is an
-            offset, not extra pay.
-          </p>
-        </Panel>
+    <div className="space-y-5">
+      <Panel className="p-6 sm:p-7"><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review planning estimates for this pay period. Final amounts may vary.</p><div className="mt-4 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">{experience.notice}</div></Panel>
+      <div className="grid gap-5 lg:grid-cols-[11fr_14fr]">
+        <div className="space-y-5">
+          <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Pay Estimate Summary</h3><div className="mt-4 space-y-3">{experience.components.map((component) => <div key={component.label} className="border-b border-slate-700/70 pb-3 last:border-b-0"><div className="flex items-baseline justify-between gap-3"><span className="text-sm text-slate-300">{component.label}</span><strong>{money(component.amount)}</strong></div><div className="mt-1 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></div>)}{experience.coordinatedPayTarget != null && <div className="border-t border-slate-600 pt-3"><div className="flex items-baseline justify-between gap-3"><span className="font-bold">Estimated coordinated pay</span><strong className="text-xl text-emerald-300">{money(experience.coordinatedPayTarget)}</strong></div><div className="mt-1 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></div>}</div>{experience.payPeriod && <div className="mt-5 rounded-lg border border-[#38425E] p-4"><h3 className="font-serif text-lg font-bold">Estimated pay for this pay period</h3><p className="mt-2 text-sm text-slate-300">{displayPayPeriod(experience.payPeriod.from, experience.payPeriod.through)}</p></div>}</Panel><PaymentTimingCard schedule={schedule} />
+        </div>
+        <div className="space-y-5">
+          {isStd && experience.waitingPeriodGuidance && <Panel className="border-l-4 border-l-cyan-400 p-6"><h3 className="font-serif text-xl font-bold">First 7 Calendar Days</h3><Badge tone="cyan">Short-Term Disability waiting period</Badge><p className="mt-3 text-sm font-semibold text-cyan-200">100% salary-continuation planning assumption</p><div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-800"><div className="h-full w-full rounded-full bg-cyan-400" /></div><p className="mt-4 text-sm leading-6 text-slate-300">{experience.waitingPeriodGuidance}</p></Panel>}
+          {isStd && <Panel className="p-6"><h3 className="font-serif text-2xl font-bold">Estimated Pay Coordination</h3><p className="mt-1 text-sm text-slate-400">Planning estimates before taxes and deductions</p><h4 className="mt-5 font-bold text-slate-200">Day 8 and Later</h4>{chartTotal > 0 && <div className="mt-4 flex h-12 overflow-hidden rounded-lg border border-slate-700" role="img" aria-label={`Estimated pay coordination: ${segments.map((segment) => `${segment.label} ${money(segment.amount)}`).join(", ")}`}><div className="flex w-full">{segments.map((segment) => <div key={segment.label} className={`${segment.tone} flex items-center justify-center px-2 text-center text-xs font-bold text-white`} style={{ width: `${segment.width}%` }}>{segment.label}</div>)}</div></div>}<div className="mt-4 space-y-3 text-sm">{segments.map((segment) => <PayRow key={segment.label} label={segment.label} value={money(segment.amount)} />)}<div className="border-t border-slate-600 pt-3"><PayRow label="Estimated coordinated pay" value={money(experience.coordinatedPayTarget)} highlight /></div></div><p className="mt-4 text-xs leading-5 text-slate-400">{experience.formula}</p></Panel>}
+          {experience.scenario === "parental" && <ParentalCoordinationCard experience={experience} />}
+        </div>
       </div>
-
-      <Panel className="overflow-hidden">
-        <div className="border-b border-slate-700 bg-slate-800/40 p-5">
-          <h3 className="font-serif text-xl font-bold">
-            Estimated Pay Coordination
-          </h3>
-          <p className="mt-1 text-xs text-slate-400">
-            Illustrative gross amounts before taxes and deductions
-          </p>
-        </div>
-
-        <div className="space-y-5 p-5 sm:p-6">
-          <div className="rounded-2xl border border-cyan-400/25 bg-cyan-400/[.05] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Badge tone="cyan">
-                Days 1–7 · Elimination Period
-              </Badge>
-              <strong className="text-cyan-300">Planning estimate</strong>
-            </div>
-
-            <p className="mt-3 text-sm text-slate-300">
-              Twilio income protection covers the first seven calendar days.
-              The estimate below uses five scheduled workdays.
-            </p>
-
-            <div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full w-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400" />
-            </div>
-
-            <div className="mt-3 flex justify-between text-sm">
-              <span className="text-slate-400">Estimated EP pay</span>
-              <strong>{money(epPay)}</strong>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-violet-400/25 bg-violet-400/[.05] p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Badge tone="violet">Day 8+ · Coordinated Pay</Badge>
-              <strong className="text-violet-300">Planning target</strong>
-            </div>
-
-            <div className="mt-5 overflow-hidden rounded-full bg-slate-800 sm:flex">
-              <div className="bg-violet-500 px-3 py-2 text-center text-xs font-bold sm:w-2/3">
-                66.67% STD
-              </div>
-              <div className="bg-rose-500 px-3 py-2 text-center text-xs font-bold sm:w-1/3">
-                33.33% top-up
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3 text-sm">
-              <PayRow
-                label="Gross STD component (66.67%)"
-                value={money(disability)}
-              />
-              <PayRow
-                label={`Less ${employee.state} state offset`}
-                value={`− ${money(offset)}`}
-              />
-              <PayRow
-                label="Net carrier-funded component"
-                value={money(netDisability)}
-              />
-              <PayRow
-                label="Estimated top-up component (33.33%)"
-                value={money(topUp)}
-              />
-
-              <div className="border-t border-slate-600 pt-3">
-                <PayRow
-                  label="Coordinated biweekly estimate"
-                  value={money(coordinated)}
-                  highlight
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100">
-            ⚠ Estimates are informational. Lincoln Financial owns claim
-            calculations; government agencies own statutory awards; payroll
-            deductions and taxes are not shown.
-          </div>
-        </div>
-      </Panel>
+      <Panel className="p-6"><h3 className="font-serif text-xl font-bold">How your pay is delivered</h3><p className="mt-3 text-sm leading-6 text-slate-300">{experience.paymentDelivery}</p></Panel>
+      {experience.stateAdjustment && <Panel className="p-6"><h3 className="font-serif text-xl font-bold">State benefit adjustment</h3><dl className="mt-4 space-y-3 text-sm"><PayRow label="Award status" value={experience.stateAdjustment.awardStatus} /><PayRow label="Estimated state benefit used" value={money(experience.stateAdjustment.estimatedStateBenefit)} /><PayRow label="State award reported" value={experience.stateAdjustment.stateAwardReported == null ? TEXT_NOT_AVAILABLE : money(experience.stateAdjustment.stateAwardReported)} /><PayRow label="Estimated adjustment" value={money(experience.stateAdjustment.estimatedAdjustment)} /></dl><p className="mt-4 text-sm leading-6 text-slate-300">The initial planning estimate may use the state program’s maximum benefit. After the award is reported, Lincoln can adjust the coordinated amount.</p></Panel>}
+      <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Pay and job protection are different</h3><p className="mt-3 text-sm leading-6 text-slate-300">{experience.jobProtectionGuidance}</p></Panel>
     </div>
   );
+}
+
+export function ParentalCoordinationCard({ experience }) {
+  const segments = experience.components.filter((component) => component.amount > 0);
+  const total = Number(experience.coordinatedPayTarget || 0);
+  return <Panel className="border-l-4 border-l-rose-500 p-6"><h3 className="font-serif text-2xl font-bold">Estimated Pay Coordination</h3><p className="mt-1 text-sm text-slate-400">Planning estimates before taxes and deductions</p><h4 className="mt-5 font-bold text-slate-200">Paid parental leave</h4><p className="mt-3 text-sm font-semibold text-rose-200">100% coordinated-pay planning estimate</p><div className="mt-4 flex h-12 overflow-hidden rounded-lg border border-slate-700" role="img" aria-label={`Paid parental leave coordination: ${segments.map((segment) => `${segment.label} ${money(segment.amount)}`).join(", ")}`}><div className="flex w-full">{segments.map((segment) => <div key={segment.label} className={`${segment.label === "State benefit estimate" ? "bg-amber-400" : "bg-rose-500"} flex items-center justify-center px-2 text-center text-xs font-bold text-white`} style={{ width: `${total > 0 ? segment.amount / total * 100 : 0}%` }}>{segment.label}</div>)}</div></div><div className="mt-4 space-y-3 text-sm">{segments.map((segment) => <PayRow key={segment.label} label={segment.label} value={money(segment.amount)} />)}<div className="border-t border-slate-600 pt-3"><PayRow label="Estimated coordinated pay" value={money(experience.coordinatedPayTarget)} highlight /></div></div></Panel>;
+}
+
+function StateProgramCapDetails({ experience }) {
+  if (!experience.stateProgram) return null;
+  return <Panel className="border-l-4 border-l-amber-400 p-6"><h3 className="font-serif text-xl font-bold">State disability program maximum</h3><p className="mt-2 text-sm text-slate-300">{experience.stateProgram.name} estimate</p><dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3"><div><dt className="text-slate-400">Weekly program maximum</dt><dd className="mt-1 font-bold">{money(experience.stateProgram.weeklyMaximum)}</dd></div><div><dt className="text-slate-400">Calculated maximum for this pay period</dt><dd className="mt-1 font-bold">{money(experience.stateProgram.calculatedMaximum)}</dd></div><div><dt className="text-slate-400">Covered days used</dt><dd className="mt-1 font-bold">{experience.stateProgram.eligibleDays}</dd></div></dl><div className="mt-3 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></Panel>;
 }
 
 function TimelineCard({ tone, title, text }) {
@@ -1371,24 +897,26 @@ function TimelineCard({ tone, title, text }) {
   );
 }
 
-function StateStatutoryCard({ employee }) {
-  const stateBenefit = getStateBenefitCoordination(employee);
-  const program = stateBenefit.program;
+export function StateStatutoryCard({ employee }) {
+  const experience = getStateCoordinationExperience(employee);
   return (
     <Panel className="p-5">
       <h3 className="font-serif text-lg font-bold">State Statutory Leave Coordination</h3>
-      <p className="mt-3 text-sm leading-6 text-slate-300">Your normalized state is <strong>{safeText(stateBenefit.state, TEXT_NOT_AVAILABLE)}</strong>. Eligibility and award amounts are informational; the state agency makes the official eligibility and award determination.</p>
+      <p className="mt-3 text-sm leading-6 text-slate-300">State: <strong>{safeText(experience.stateCode, TEXT_NOT_AVAILABLE)}</strong></p>
       <dl className="mt-4 space-y-3 text-sm">
-        <PayRow label="Potential state program" value={program?.name || "No applicable state program identified"} />
-        <PayRow label="Program status" value={program?.programStatus || TEXT_NOT_AVAILABLE} />
-        <PayRow label="Maximum weekly benefit and year" value={program ? `${money(program.maximumWeeklyBenefit)} · ${program.maximumYear}` : TEXT_NOT_AVAILABLE} />
-        <PayRow label="Available family / medical duration" value={program ? `${program.familyLeaveWeeks ?? TEXT_NOT_AVAILABLE} / ${program.medicalLeaveWeeks ?? TEXT_NOT_AVAILABLE} weeks` : TEXT_NOT_AVAILABLE} />
-        <PayRow label="Eligibility guidance" value={program?.eligibilityDescription || "Verify with the state agency; no eligibility determination is inferred."} />
-        <PayRow label="Application owner" value={program?.applicationOwner || TEXT_NOT_AVAILABLE} />
-        <PayRow label="Lincoln coordination" value={program?.lincolnCoordination || TEXT_NOT_AVAILABLE} />
-        <PayRow label="Award letter recipient" value={program?.awardLetterRecipient || TEXT_NOT_AVAILABLE} />
+        {experience.programName && <PayRow label="Program" value={experience.programName} />}
+        <PayRow label="Status" value={experience.statusLabel} />
+        {experience.coveredLeaveLabel && <PayRow label="Covered leave type" value={experience.coveredLeaveLabel} />}
+        {experience.weeklyMaximum != null && <PayRow label="Weekly maximum and year" value={`${money(experience.weeklyMaximum)} · ${experience.maximumYear}`} />}
+        {experience.calculatedMaximum != null && <PayRow label="Calculated maximum for this pay period" value={money(experience.calculatedMaximum)} />}
+        {experience.coveredDays != null && <PayRow label="Covered days used" value={experience.coveredDays} />}
+        {experience.eligibilitySummary && <PayRow label="Basic eligibility information" value={experience.eligibilitySummary} />}
       </dl>
-      {program ? <><a className="mt-4 inline-block text-sm font-semibold text-[#72A5FF] underline" href={program.officialProgramUrl} target="_blank" rel="noreferrer">Visit Official Program Website <span aria-hidden="true">↗</span></a><p className="mt-3 text-xs leading-5 text-slate-400">Planning guidance only. A future or non-covered program does not create a state offset before benefits begin. After approval, submit the award letter through the authorized process and notify Twilio Leave Operations / Payroll.</p></> : <p className="mt-4 text-xs leading-5 text-slate-400">Planning guidance only. Verify whether a state award applies before submitting documentation.</p>}
+      <p className="mt-3 text-sm leading-6 text-slate-300">{experience.statusMessage}</p>
+      <p className="mt-3 text-sm leading-6 text-slate-300">{experience.administrationMessage}</p>
+      {experience.officialProgramUrl && <a className="mt-4 inline-block text-sm font-semibold text-[#72A5FF] underline" href={experience.officialProgramUrl} target="_blank" rel="noreferrer">Official state program website <span aria-hidden="true">↗</span></a>}
+      {experience.applicationAction && <a className="mt-4 ml-4 inline-block text-sm font-semibold text-[#72A5FF] underline" href={experience.applicationAction.url} target="_blank" rel="noreferrer">{experience.applicationAction.label} <span aria-hidden="true">↗</span></a>}
+      <p className="mt-3 text-xs leading-5 text-slate-400">{experience.estimateExplanation}</p><p className="mt-3 text-xs leading-5 text-slate-400">{experience.awardExplanation}</p><p className="mt-3 text-xs leading-5 text-slate-400">{experience.concurrentLeaveExplanation}</p>
     </Panel>
   );
 }
@@ -1456,7 +984,7 @@ function PlanTab({ employee }) {
         </div>
 
         <div className="mt-9 overflow-x-auto pb-3">
-          <div className="min-w-[720px]">
+          <div className="w-full">
             <div className="relative mb-4 h-28 rounded-2xl border border-slate-700 bg-[#10172a] p-4">
               <div className="relative h-full">
                 {phases.map((phase) => (
@@ -1543,148 +1071,29 @@ function PlanTab({ employee }) {
 }
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
-const SERVICENOW_URL = "https://twilio.service-now.com/";
 
-function AccordionGroup({ id, title, timing, tasks, checked, onToggle }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="rounded-xl border border-slate-700 bg-[#10172a]">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-4 p-4 text-left focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
-      >
-        <span>
-          <span className="block font-bold">{title}</span>
-          <span className="mt-1 block text-xs text-slate-400">{timing}</span>
-        </span>
-        <span aria-hidden="true" className="text-xl text-cyan-300">{open ? "−" : "+"}</span>
-      </button>
-      {open && (
-        <div id={id} className="border-t border-slate-700 px-3 py-3">
-          {tasks.map((task) => (
-            <CheckItem
-              key={task.id}
-              checked={Boolean(checked[task.id])}
-              onChange={() => onToggle(task.id)}
-            >
-              <span>{task.text}</span>
-              <span className="mt-1 block text-xs font-semibold uppercase tracking-wide text-cyan-300">
-                Owner: {task.owner}
-              </span>
-            </CheckItem>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ReturnToWorkTab({ employee }) {
-  const summary = getEmployeeReturnToWorkSummary(employee);
+export function ReturnToWorkTab({ employee }) {
+  const experience = getEmployeeReturnToWorkExperience(employee, { asOfDate: "2026-08-27" });
   const [checked, setChecked] = useState({});
   const toggle = (id) => setChecked((current) => ({ ...current, [id]: !current[id] }));
-  const displayDate = (value) => value ? formatReturnToWorkDate(value) : RTW_NOT_AVAILABLE;
-  const checklist = [
-    {
-      id: "before-30",
-      title: "14–30 days before return",
-      timing: "Early planning and coordination",
-      tasks: [
-        { id: "confirm-recorded-date", text: "Confirm the recorded return date with Lincoln Financial and your manager.", owner: "Employee" },
-        { id: "confirm-documentation", text: "Confirm whether return documentation is required through the authorized process.", owner: "Lincoln Financial" },
-        { id: "plan-handoff", text: "Plan work hand-back, priority alignment, and a manager check-in.", owner: "Manager" },
-      ],
-    },
-    {
-      id: "before-3",
-      title: "3–7 days before return",
-      timing: "Practical readiness",
-      tasks: [
-        { id: "request-access", text: "Request IT or license reactivation before return through the authorized ServiceNow process.", owner: "IT / ServiceNow" },
-        { id: "review-delegations", text: "Review Workday and Ramp delegations and plan their removal when appropriate.", owner: "Employee" },
-        { id: "calendar-reset", text: "Prepare a calendar reset and first-week priorities with your manager.", owner: "Manager" },
-      ],
-    },
-    {
-      id: "first-day",
-      title: "First day back",
-      timing: "Access and alignment",
-      tasks: [
-        { id: "verify-access", text: "Verify required systems, licenses, and shared resources are accessible.", owner: "IT / ServiceNow" },
-        { id: "manager-checkin", text: "Complete a manager check-in and confirm the work hand-back sequence.", owner: "Manager" },
-        { id: "remove-delegations", text: "Remove Workday and Ramp delegations when appropriate.", owner: "Employee" },
-      ],
-    },
-    {
-      id: "first-30",
-      title: "First 30 days",
-      timing: "Reintegration follow-through",
-      tasks: [
-        { id: "reintegration-checkin", text: "Use a first-30-days reintegration check-in to review priorities and open actions.", owner: "Manager" },
-        { id: "phased-discussion", text: "Discuss phased reintegration options with your manager where applicable; no outcome is assumed here.", owner: "Employee / Manager" },
-        { id: "leave-ops-followup", text: "Route outstanding administrative questions to Twilio Leave Operations.", owner: "Twilio Leave Operations" },
-      ],
-    },
-  ];
+  const displayDate = (value) => value ? formatReturnToWorkDate(value) : "Date to be confirmed";
+  const hasNotice = experience.confirmationRequired || experience.viewId === "after-return";
 
   return (
     <div className="space-y-5">
       <Panel className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <Badge tone={summary.hasReturnToWorkData ? "green" : "amber"}>{summary.status}</Badge>
-            <h2 className="mt-4 font-serif text-2xl font-bold">Return-to-Work Snapshot</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Administrative planning information from the verified source record. This view does not determine clearance, approval, eligibility, or accommodation need.
-            </p>
-          </div>
-          <span className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-300">Record data</span>
-        </div>
+        <Badge tone={experience.dateStatus === "Overdue" ? "amber" : "green"}>{experience.dateStatus}</Badge>
+        <h2 className="mt-4 font-serif text-2xl font-bold">{experience.title}</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{experience.description}</p>
         <dl className="mt-6 grid gap-x-8 gap-y-4 border-t border-slate-700 pt-5 sm:grid-cols-2">
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Expected return date</dt><dd className="mt-1 font-bold text-cyan-300">{displayDate(summary.controllingReturnDate)}</dd></div>
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Actual return date</dt><dd className="mt-1 font-bold">{displayDate(summary.actualReturnDate)}</dd></div>
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Date basis</dt><dd className="mt-1">{summary.controllingDateLabel || RTW_NOT_AVAILABLE}</dd></div>
-          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Source report</dt><dd className="mt-1">{summary.sourceSheet || RTW_NOT_AVAILABLE}</dd></div>
+          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Expected return date</dt><dd className="mt-1 font-bold text-cyan-300">{displayDate(experience.expectedReturnDate)}</dd></div>
+          <div><dt className="text-xs uppercase tracking-wider text-slate-400">Actual return date</dt><dd className="mt-1 font-bold">{displayDate(experience.actualReturnDate)}</dd></div>
         </dl>
-        <div className="mt-5 rounded-xl border border-slate-700 bg-[#10172a] p-4">
-          <h3 className="font-bold">Supporting date context</h3>
-          {summary.contextDates.length ? <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">{summary.contextDates.map((date) => <div key={date.label} className="flex justify-between gap-3"><dt className="text-slate-400">{date.label}</dt><dd className="font-semibold">{date.displayValue}</dd></div>)}</dl> : <p className="mt-2 text-sm text-slate-400">{RTW_NOT_AVAILABLE}</p>}
-          <p className="mt-4 text-xs leading-5 text-slate-400">Planned dates are not confirmation of readiness. General planning guidance appears below.</p>
-        </div>
       </Panel>
-
-      <Panel className="p-6">
-        <Badge tone="cyan">General planning guidance</Badge>
-        <h2 className="mt-4 font-serif text-2xl font-bold">RTW Readiness Checklist</h2>
-        <p className="mt-2 text-sm text-slate-400">Tasks stay unchecked until you mark them locally. No completion is inferred from the source record.</p>
-        <div className="mt-5 space-y-3">{checklist.map((group) => <AccordionGroup key={group.id} {...group} checked={checked} onToggle={toggle} />)}</div>
-      </Panel>
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel className="p-6">
-          <Badge tone="amber">Extension support</Badge>
-          <h2 className="mt-4 font-serif text-xl font-bold">Need more time away?</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">Contact Lincoln Financial through the authorized channel to request or discuss an extension. An extension is not guaranteed, and no grace period is assumed.</p>
-          <a className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-[#1B66EE] px-4 py-3 text-sm font-bold text-white hover:bg-[#3D7FF2]" href={MY_LINCOLN_URL} target="_blank" rel="noreferrer">Open MyLincoln Portal <span className="ml-2" aria-hidden="true">↗</span></a>
-        </Panel>
-        <Panel className="p-6">
-          <Badge tone="violet">IT / ServiceNow</Badge>
-          <h2 className="mt-4 font-serif text-xl font-bold">Access and license recovery</h2>
-          <p className="mt-3 text-sm leading-6 text-slate-300">As general planning guidance, begin an access reactivation request approximately three days before a planned return. This record does not confirm that access was disabled.</p>
-          <a className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-3 text-sm font-bold text-white hover:border-cyan-300" href={SERVICENOW_URL} target="_blank" rel="noreferrer">Route to ServiceNow <span className="ml-2" aria-hidden="true">↗</span></a>
-        </Panel>
-      </div>
-
-      <Panel className="p-6">
-        <Badge tone="pink">Manager reintegration</Badge>
-        <h2 className="mt-4 font-serif text-xl font-bold">Plan the return conversation</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-300">Discuss work hand-back, calendar reset, priority alignment, and a manager check-in. Where applicable, discuss phased reintegration options with your manager; this tool does not promise or determine a phased return.</p>
-      </Panel>
-
+      {hasNotice && <Panel className="border-l-4 border-l-rose-500 p-5"><h3 className="font-bold">{experience.confirmationRequired ? "Please confirm your return date" : "Lincoln follow-up"}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{experience.confirmationRequired ? "Confirm or update your return date in MyLincoln Portal, then confirm it with your manager." : "Contact Lincoln if approval or closure remains unresolved."}</p><a className="mt-4 inline-flex min-h-10 items-center rounded-lg bg-[#1B66EE] px-4 py-2 text-sm font-bold text-white" href={MY_LINCOLN_URL} target="_blank" rel="noreferrer">Open MyLincoln Portal <span className="ml-2" aria-hidden="true">↗</span></a></Panel>}
+      {experience.actions.length > 0 && experience.viewId !== "not-yet" && <Panel className="p-6"><h3 className="font-serif text-2xl font-bold">{experience.title}</h3><p className="mt-1 text-sm text-slate-400">Complete the steps that apply to your return.</p><div className="mt-5 space-y-1">{experience.actions.map((action) => <CheckItem key={action.id} checked={Boolean(checked[action.id])} onChange={() => toggle(action.id)}><span>{action.text}</span>{action.destination && <a href={action.destination} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-bold text-[#72A5FF]">Open MyLincoln Portal ↗</a>}</CheckItem>)}</div></Panel>}
+      {experience.flexReturn.show && <Panel className="border-l-4 border-l-violet-400 p-6"><h3 className="font-serif text-xl font-bold">FlexReturn</h3><p className="mt-2 text-sm leading-6 text-slate-300">{experience.flexReturn.message}</p><a className="mt-4 inline-flex text-sm font-bold text-[#72A5FF] underline" href={experience.flexReturn.learnMoreUrl} target="_blank" rel="noreferrer">Learn more about FlexReturn <span className="ml-2" aria-hidden="true">↗</span></a></Panel>}
+      {experience.viewId === "after-return" && <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Post-return survey</h3><p className="mt-2 text-sm text-slate-300">Complete the short post-return survey to share your experience.</p></Panel>}
       <WorkplaceSupportPanel employee={employee} />
     </div>
   );
@@ -1695,7 +1104,6 @@ function WorkplaceSupportPanel({ employee }) {
     "Workplace schedule adjustment"
   );
   const [manager, setManager] = useState(employee.manager);
-  const [hrbp, setHrbp] = useState(employee.hrbp);
   const [copied, setCopied] = useState(false);
 
   const draft = `Subject: Request to begin the accommodation interactive process
@@ -1706,7 +1114,7 @@ I’m requesting a conversation about a workplace accommodation related to ${rea
 
 My requested start date is [DATE]. I will provide any required supporting documentation through the approved confidential process and will not include medical details in this email.
 
-Please include ${hrbp} as appropriate. Thank you for partnering with me on next steps.
+Please contact Twilio Leave Operations or the accommodations team for next steps.
 
 Best,
 ${employee.firstName} ${employee.lastName}`;
@@ -1780,11 +1188,6 @@ ${employee.firstName} ${employee.lastName}`;
             onChange={(event) => setManager(event.target.value)}
           />
 
-          <Field
-            label="HRBP"
-            value={hrbp}
-            onChange={(event) => setHrbp(event.target.value)}
-          />
         </div>
 
         <div className="mt-6 rounded-xl border border-emerald-400/25 bg-emerald-400/10 p-4 text-xs leading-5 text-emerald-100">
@@ -1814,7 +1217,7 @@ ${employee.firstName} ${employee.lastName}`;
   );
 }
 
-function SupportResourcesTab({ onOpenReturnToWork }) {
+function LegacySupportResourcesTab({ onOpenReturnToWork }) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [openResources, setOpenResources] = useState(() => new Set());
   const categories = getSupportResourceCategories();
@@ -1849,6 +1252,41 @@ function SupportResourcesTab({ onOpenReturnToWork }) {
   );
 }
 
+function LegacyBenefitResourcesTab({ onOpenReturnToWork }) {
+  const [selectedCategory, setSelectedCategory] = useState("All resources");
+  const [search, setSearch] = useState("");
+  const resources = filterBenefitResources({ category: selectedCategory, search });
+  const recommendations = BENEFIT_RESOURCES.filter((resource) => resource.applicableTags.length > 0).slice(0, 8);
+  const buttonLabel = (resource) => resource.portalUrl ? "Open vendor website" : resource.accessMethod === "Access through Aetna." ? "Access through Aetna" : resource.accessMethod.includes("Workday") ? "Review in Workday" : resource.accessMethod.includes("Twilio Okta") ? "Open through Twilio Okta" : null;
+
+  return <div className="space-y-5">
+    <Panel className="p-6 sm:p-7"><Badge tone="pink">2026 benefits</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Benefit Resources</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Explore optional benefit resources by service or vendor. Search and filtering happen only in this browser and do not send employee information externally.</p></Panel>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">How to access your benefits</h3><div className="mt-4 grid gap-4 md:grid-cols-3 text-sm leading-6 text-slate-300"><p><strong className="text-white">Twilio Okta:</strong> Launch available benefit applications through Twilio Okta.</p><p><strong className="text-white">Workday:</strong> Review benefit elections, qualifying-life-event changes, beneficiaries, and payroll deductions.</p><p><strong className="text-white">Direct vendor access:</strong> Some vendors allow registration using a Twilio work email.</p></div></Panel>
+    <section aria-labelledby="resource-directory-heading"><div className="flex flex-wrap items-end justify-between gap-4"><div><h3 id="resource-directory-heading" className="font-serif text-2xl font-bold">Browse resources</h3><p className="mt-1 text-sm text-slate-400">Availability may depend on your enrolled medical plan.</p></div><label className="w-full sm:w-80"><span className="sr-only">Search benefits resources</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vendor or service" className="w-full rounded-lg border border-[#38425E] bg-[#0F1830] px-4 py-3 text-sm text-white placeholder:text-[#9AA0B4]" /></label></div><div className="mt-4 flex flex-wrap gap-2" aria-label="Resource categories"><button type="button" aria-pressed={selectedCategory === "All resources"} onClick={() => setSelectedCategory("All resources")} className="app-button app-button--secondary">All resources</button>{BENEFIT_RESOURCE_CATEGORIES.map((category) => <button key={category} type="button" aria-pressed={selectedCategory === category} onClick={() => setSelectedCategory(category)} className="app-button app-button--secondary">{category}</button>)}</div></section>
+    {resources.length ? <div className="grid gap-5 md:grid-cols-2">{resources.map((resource) => <Panel key={resource.id} className="flex h-full flex-col p-6"><div className="flex flex-wrap items-center justify-between gap-3"><Badge tone="cyan">{resource.category}</Badge><span className="text-xs text-slate-400">Plan year {resource.planYear}</span></div><h3 className="mt-5 font-serif text-2xl font-bold">{resource.vendorName}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{resource.shortDescription}</p><div className="mt-4 space-y-2 text-sm leading-6"><p><strong>Access:</strong> {resource.accessMethod}</p><p className="text-slate-400">{resource.eligibilityNote}</p></div>{resource.portalUrl && <div className="mt-auto pt-5"><a href={resource.portalUrl} target="_blank" rel="noreferrer" className="app-button app-button--primary">{buttonLabel(resource)}</a></div>}</Panel>)}</div> : <Panel className="p-6"><p className="text-sm text-slate-300">No active resources match this search. Try a different vendor, service, or category.</p><button type="button" onClick={() => { setSearch(""); setSelectedCategory("All resources"); }} className="app-button app-button--secondary mt-4">Clear filters</button></Panel>}
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Resources you may want to explore</h3><p className="mt-2 text-sm leading-6 text-slate-300">These optional resources may be useful during parental or bonding leave, a personal medical leave, or return to work. They do not indicate eligibility, enrollment, or a recommendation for care.</p><div className="mt-4 flex flex-wrap gap-2">{recommendations.map((resource) => <Badge key={resource.id} tone="violet">{resource.vendorName}</Badge>)}</div></Panel>
+    <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">Care.com is no longer listed as an active 2026 benefit. Review Cleo for available parenting and caregiving support.</p>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Need help finding the right resource?</h3><p className="mt-2 text-sm leading-6 text-slate-300">Submit a Benefits Question through the People Service Portal or review your current benefit elections in Workday.</p><button type="button" onClick={onOpenReturnToWork} className="app-button app-button--secondary mt-4">Open Return to Work</button></Panel>
+  </div>;
+}
+
+function SupportResourcesTab({ onOpenReturnToWork }) {
+  const [selectedCategory, setSelectedCategory] = useState("All resources");
+  const [search, setSearch] = useState("");
+  const resources = filterBenefitResources({ category: selectedCategory, search });
+  const recommendations = BENEFIT_RESOURCES.filter((resource) => resource.applicableTags.length > 0).slice(0, 8);
+
+  return <div className="space-y-5">
+    <Panel className="p-6 sm:p-7"><Badge tone="pink">2026 benefits</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Benefit Resources</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">Explore optional benefit resources by service or vendor. Search and filtering happen only in this browser and do not send employee information externally.</p></Panel>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">How to access your benefits</h3><div className="mt-4 grid gap-4 md:grid-cols-3 text-sm leading-6 text-slate-300"><p><strong className="text-white">Twilio Okta:</strong> Launch available benefit applications through Twilio Okta. <a href="https://twilio.okta.com" target="_blank" rel="noreferrer" className="font-bold text-[#72A5FF]">Open Twilio Okta</a></p><p><strong className="text-white">Workday:</strong> Review benefit elections, qualifying-life-event changes, beneficiaries, and payroll deductions. Open Workday through Twilio Okta.</p><p><strong className="text-white">Direct vendor access:</strong> Some vendors allow registration using a Twilio work email.</p></div></Panel>
+    <section aria-labelledby="resource-directory-heading"><div className="flex flex-wrap items-end justify-between gap-4"><div><h3 id="resource-directory-heading" className="font-serif text-2xl font-bold">Browse resources</h3><p className="mt-1 text-sm text-slate-400">Availability may depend on your enrolled medical plan.</p></div><label className="w-full sm:w-80"><span className="sr-only">Search benefits resources</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search vendor or service" className="w-full rounded-lg border border-[#38425E] bg-[#0F1830] px-4 py-3 text-sm text-white placeholder:text-[#9AA0B4]" /></label></div><div className="mt-4 flex flex-wrap gap-2" aria-label="Resource categories"><button type="button" aria-pressed={selectedCategory === "All resources"} onClick={() => setSelectedCategory("All resources")} className="app-button app-button--secondary">All resources</button>{BENEFIT_RESOURCE_CATEGORIES.map((category) => <button key={category} type="button" aria-pressed={selectedCategory === category} onClick={() => setSelectedCategory(category)} className="app-button app-button--secondary">{category}</button>)}</div></section>
+    {resources.length ? <div className="grid gap-5 md:grid-cols-2">{resources.map((resource) => <Panel key={resource.id} className="flex h-full flex-col p-6"><div className="flex flex-wrap items-center justify-between gap-3"><Badge tone="cyan">{resource.category}</Badge><span className="text-xs text-slate-400">Plan year {resource.planYear}</span></div><h3 className="mt-5 font-serif text-2xl font-bold">{resource.vendorName}</h3><p className="mt-2 text-sm leading-6 text-slate-300">{resource.shortDescription}</p><div className="mt-4 space-y-2 text-sm leading-6"><p><strong>Access:</strong> {resource.accessMethod}</p><p className="text-slate-400">{resource.eligibilityNote}</p></div>{[...new Map(resource.links.map((link) => [link.url, link])).values()].length > 0 && <div className="mt-auto flex flex-wrap gap-2 pt-5">{[...new Map(resource.links.map((link) => [link.url, link])).values()].map((link) => <a key={link.url} href={link.url} target="_blank" rel="noreferrer" className="app-button app-button--primary">{link.label}</a>)}</div>}</Panel>)}</div> : <Panel className="p-6"><p className="text-sm text-slate-300">No active resources match this search. Try a different vendor, service, or category.</p><button type="button" onClick={() => { setSearch(""); setSelectedCategory("All resources"); }} className="app-button app-button--secondary mt-4">Clear filters</button></Panel>}
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Resources you may want to explore</h3><p className="mt-2 text-sm leading-6 text-slate-300">These optional resources may be useful during parental or bonding leave, a personal medical leave, or return to work. They do not indicate eligibility, enrollment, or a recommendation for care.</p><div className="mt-4 flex flex-wrap gap-2">{recommendations.map((resource) => <Badge key={resource.id} tone="violet">{resource.vendorName}</Badge>)}</div></Panel>
+    <p className="rounded-lg border border-[#38425E] bg-[#10172a] p-4 text-xs leading-5 text-slate-300">Care.com is no longer listed as an active 2026 benefit. Review Cleo for available parenting and caregiving support.</p>
+    <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Need help finding the right resource?</h3><p className="mt-2 text-sm leading-6 text-slate-300">Submit a Benefits Question through the People Service Portal or review your current benefit elections in Workday. Open through Twilio Okta.</p><button type="button" onClick={onOpenReturnToWork} className="app-button app-button--secondary mt-4">Open Return to Work</button></Panel>
+  </div>;
+}
+
 function ChatTab({ employee }) {
   const [messages, setMessages] = useState([
     {
@@ -1872,6 +1310,7 @@ function ChatTab({ employee }) {
     const activeStage = safeText(employee?.activeStage, TEXT_NOT_AVAILABLE);
     const certStatus = safeText(employee?.certStatus, TEXT_NOT_AVAILABLE);
     const state = safeText(employee?.state, "");
+    const stateExperience = getStateCoordinationExperience(employee);
 
     if (q.includes("pay") || q.includes("salary")) {
       return `Pay information is not available in this source report. The payroll team can confirm the latest pay and top-up guidance in the official source record.`;
@@ -1881,12 +1320,17 @@ function ChatTab({ employee }) {
       return `The latest normalized status in this demo record is “${claimStatus}.” For the official live status, check MyLincoln Portal and your latest Lincoln email. Lincoln Financial owns the final claim determination.`;
     }
 
+    if (q.includes("state") || q.includes("benefit")) {
+      if (!stateExperience.programName) return `No state benefit estimate is included for ${state || "your location"}. Review the applicable state website or contact Lincoln Financial for guidance. Federal, state, and company leave may overlap, and each program makes its own official determination.`;
+      return `${stateExperience.programName} may apply. ${stateExperience.administrationMessage} Review the official state program website for details. The displayed amount is a planning estimate. Federal, state, and company leave may overlap, and the state agency and Lincoln Financial make official determinations.`;
+    }
+
     if (q.includes("next") || q.includes("do")) {
-      return `Your active stage is ${activeStage}. Start by checking the Lifecycle To-Dos tab, reviewing any new Lincoln message, and confirming that your manager and HRBP know the timing without sharing medical details.`;
+      return `Your active stage is ${activeStage}. Start by checking the Lifecycle To-Dos tab, reviewing any new Lincoln message, and confirming the timing with your manager without sharing medical details.`;
     }
 
     if (q.includes("return") || q.includes("rtw")) {
-      return "Before returning, confirm whether Lincoln requires a release, align your return date with your manager, and verify system access. If workplace adjustments may help, use the optional workplace support section to begin a PHI-free interactive-process conversation.";
+      return "Update your return date in MyLincoln Portal, contact Lincoln if you need an extension, confirm the date with your manager, and check system access on your first day back. Use workplace support if job-related adjustments may help.";
     }
 
     if (q.includes("cert") || q.includes("document")) {
@@ -2048,11 +1492,12 @@ export default function App() {
       <main className="app-content mx-auto max-w-7xl space-y-6 px-5 py-6 sm:py-8">
         {showVerificationMessage && (
           <div role="status" aria-live="polite" className="flex items-start justify-between gap-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-            <span>{SUCCESS_STATUS_MESSAGE}</span>
-            <button type="button" aria-label="Dismiss verification confirmation" onClick={() => setShowVerificationMessage(false)} className="shrink-0 rounded-md px-2 text-lg leading-5 text-emerald-100 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60">×</button>
+            <span>Welcome, {employee.firstName} {employee.lastName}</span>
+            <button type="button" aria-label="Dismiss welcome message" onClick={() => setShowVerificationMessage(false)} className="shrink-0 rounded-md px-2 text-lg leading-5 text-emerald-100 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60">×</button>
           </div>
         )}
         <PriorityActions employee={employee} />
+        <LifecycleAlerts employee={employee} />
         <SummaryCards employee={employee} />
         <TabBar active={activeTab} setActive={setActiveTab} />
         {content}

@@ -47,6 +47,7 @@ export const normalizeDisplayDate = (value) => {
 const sourceLabel = (value) => value === "Weekly Leave Intermittent Repor" ? "Weekly Leave Intermittent Report" : value || null;
 const finitePositive = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
 const finiteOrNull = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+const cents = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const productKey = (value) => String(value || "").trim().toUpperCase();
 const recordKey = (record, index) => `${record.employeeId || "employee"}-${record.sourceSheet || "source"}-${index}`;
 
@@ -104,15 +105,16 @@ export const getEmployeePayTimeline = (employee, options = {}) => {
     : null;
   const rtw = getEmployeeReturnToWorkSummary(employee);
   const milestone = getEmployeeNextMilestone(employee, { asOfDate });
-  const stateBenefit = getStateBenefitCoordination({ ...payRecord, ...employee, payPeriodFromDate: pay.payPeriodFromDate, payPeriodThruDate: pay.payPeriodThroughDate });
+  const lincolnGross = cents(pay.biweeklySalary * 0.6667);
+  const stateBenefit = getStateBenefitCoordination({ ...payRecord, ...employee, payPeriodFromDate: pay.payPeriodFromDate, payPeriodThruDate: pay.payPeriodThroughDate }, { coordinatedPayPeriodTarget: pay.biweeklySalary, lincolnGross });
   const planningEstimate = payScenario === "std" ? {
     dailyBusinessDayRate: pay.biweeklySalary / 10,
     eliminationPeriod: { label: "Twilio planning estimate for eligible business days", amount: pay.biweeklySalary / 10 * 5 },
-    lincoln: { label: "Lincoln planning estimate at 66.67%", amount: pay.biweeklySalary * 0.6667 },
-    lincolnNetAfterStateOffset: Math.max(0, pay.biweeklySalary * 0.6667 - stateBenefit.assumedStateOffset),
-    twilio: { label: "Twilio Estimated Top-Up", amount: Math.max(0, pay.biweeklySalary - stateBenefit.assumedStateOffset - Math.max(0, pay.biweeklySalary * 0.6667 - stateBenefit.assumedStateOffset) - Math.max(0, (pay.totalOffsets || 0) - (stateBenefit.sourceAmountType === "source-recorded" ? stateBenefit.assumedStateOffset : 0))) },
-    combinedGross: pay.biweeklySalary,
-    basePayTarget: pay.biweeklySalary,
+    lincoln: { label: "Lincoln planning estimate at 66.67%", amount: lincolnGross },
+    lincolnNetAfterStateOffset: stateBenefit.lincolnAfterStateOffset,
+    twilio: { label: "Twilio Estimated Top-Up", amount: stateBenefit.twilioEstimatedTopUp },
+    combinedGross: cents(pay.biweeklySalary),
+    basePayTarget: cents(pay.biweeklySalary),
   } : null;
   const missingInformation = [];
   if (!hasPayData) missingInformation.push("A finite positive biweekly salary is not present in the source report.");
