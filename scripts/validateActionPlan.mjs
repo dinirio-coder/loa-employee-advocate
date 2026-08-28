@@ -47,12 +47,19 @@ const pendingDocumentation = getEmployeePriorityActions({
   sourceRecords: [{ sourceSheet: "Combined Status" }],
 }, { asOfDate });
 assert.deepEqual(names(pendingDocumentation), [
-  "Review Lincoln’s messages",
-  "Understand what is required",
-  "Submit your documentation",
-  "Contact Lincoln if you need more time",
+  "Submit your documentation to Lincoln",
+  "Tell your manager",
 ]);
-assert.match(actionText(pendingDocumentation), /15 calendar days/);
+assert.equal(pendingDocumentation[0].description, "Submit your required documentation through MyLincoln Portal by the deadline shown there, usually within 15 calendar days.");
+assert.equal(pendingDocumentation[0].timing, "By the deadline shown in MyLincoln Portal");
+assert.equal(pendingDocumentation[0].destination, "https://www.mylincolnportal.com/");
+assert.equal(pendingDocumentation[1].description, "Share your expected leave start date with your manager. You do not need to provide medical details.");
+assert.equal(pendingDocumentation[1].timing, "After starting your leave request");
+for (const status of ["PE", "PEND", "PENDED", "PENDING", "IP"]) {
+  const pending = getEmployeePriorityActions({ currentReportStatus: status, sourceRecords: [{ leaveBeginDate: "2026-09-10" }] }, { asOfDate });
+  assert.equal(pending[0].title, "Submit your documentation to Lincoln", `${status} should not be asked to apply`);
+  assert(!names(pending).includes("Apply for leave"), `${status} should not receive apply guidance`);
+}
 validateCommon(pendingDocumentation);
 
 const returning = getEmployeePriorityActions({

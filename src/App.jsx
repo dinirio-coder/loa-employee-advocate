@@ -58,12 +58,9 @@ const GENERIC_VERIFICATION_ERROR =
 const CONFLICT_VERIFICATION_ERROR =
   "We found a source record that requires administrative review before personalized information can be displayed. Please contact Twilio Leave Operations.";
 
-const SUCCESS_STATUS_MESSAGE =
-  "Thank you. I confirmed your first name, last name, and Employee ID against the authorized employee record. I can now help with the administrative information available in your leave record.";
-
 const TABS = [
-  ["todos", "✓", "Lifecycle To-Dos"],
-  ["payTimeline", "$", "Pay & Leave Timeline"],
+  ["todos", "✓", "To Do List"],
+  ["payTimeline", "$", "Your Pay"],
   ["rtw", "↻", "Return to Work"],
   ["resources", "◇", "Support Resources"],
   ["chat", "✦", "Ask Advocate"],
@@ -598,7 +595,7 @@ function SummaryCards({ employee }) {
     {
       label: "Next Milestone",
       value: milestone.hasMilestone ? milestone.label : TEXT_NOT_AVAILABLE,
-      note: milestone.date || "Date to be confirmed",
+      note: milestone.date || (milestone.label === "Submit your documentation" ? milestone.timing : "Date to be confirmed"),
       details: milestone.hasMilestone ? `${milestone.timing}${milestone.status === "overdue" ? " · Overdue" : ""} · ${milestone.basis}` : milestone.basis,
       icon: "✎",
       color: "amber",
@@ -850,7 +847,7 @@ const displayPayPeriod = (start, end) => {
 
 function PayTimelineTab({ employee }) {
   const experience = getEmployeePayExperience(employee, { asOfDate: "2026-08-26" });
-  const schedule = getEmployeePaySchedule(experience, { asOfDate: "2026-08-26" });
+  const schedule = getEmployeePaySchedule(employee, { asOfDate: "2026-08-26" });
   return <><PayExperienceLayout experience={experience} schedule={schedule} /><StateStatutoryCard employee={employee} /></>;
 }
 
@@ -873,15 +870,19 @@ function PayRow({ label, value, highlight }) {
 
 function PaymentTimingCard({ schedule }) {
   const [open, setOpen] = useState(false);
-  if (schedule.status !== "matched") return <Panel className="p-6"><h3 className="font-serif text-xl font-bold">When you can expect payment</h3><p className="mt-3 text-sm leading-6 text-slate-300">{schedule.employeeMessage}</p></Panel>;
   const longDate = (value) => new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+  const matched = schedule.status === "matched";
+  const fullSchedule = <><button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="mt-5 flex w-full items-center justify-between rounded-lg border border-[#38425E] px-4 py-3 text-sm font-bold">View the full 2026 leave pay schedule <span aria-hidden="true">{open ? "v" : ">"}</span></button>{open && <div className="mt-3 space-y-2">{PAY_SCHEDULE_2026.map((row) => <div key={row.payPeriodNumber} className={`grid gap-1 rounded-lg border p-3 text-xs sm:grid-cols-5 ${matched && row.payPeriodNumber === schedule.payPeriodNumber ? "border-[#1B66EE] bg-[#1B66EE]/10" : "border-[#38425E]"}`}><span>Pay period {row.payPeriodNumber}</span><span>{longDate(row.payPeriodStart)}</span><span>{longDate(row.payPeriodEnd)}</span><span>{longDate(row.leaveApprovalCutoff)}</span><span className="text-emerald-300">{longDate(row.payDate)}</span></div>)}</div>}<p className="mt-4 text-xs text-slate-400">Planning guidance—not a payment guarantee.</p></>;
+
+  if (!matched) return <Panel className="p-6"><h3 className="font-serif text-xl font-bold">When you can expect payment</h3><p className="mt-3 text-sm leading-6 text-slate-300">{schedule.employeeMessage}</p>{schedule.supportingGuidance && <p className="mt-2 text-sm leading-6 text-slate-300">{schedule.supportingGuidance}</p>}{fullSchedule}</Panel>;
+
   const period = `${longDate(schedule.payPeriodStart).replace(/, 2026$/, "")}-${longDate(schedule.payPeriodEnd)}`;
   const badge = `CUTOFF ${schedule.cutoffStatus.toUpperCase()}`;
-  const message = schedule.cutoffStatus === "passed" ? `The approval cutoff for this pay period has passed. If approval was completed after ${longDate(schedule.leaveApprovalCutoff)}, payment may move to a later payroll cycle.` : schedule.cutoffStatus === "today" ? "The approval cutoff for this pay period is today. Approval timing may affect when the payment is processed." : `If your leave approval is completed by ${longDate(schedule.leaveApprovalCutoff)}, the related Twilio payroll payment is expected on ${longDate(schedule.payDate)}.`;
-  return <Panel className="p-6"><div className="flex items-start justify-between gap-4"><h3 className="font-serif text-xl font-bold">When you can expect payment</h3><Badge tone={schedule.cutoffStatus === "passed" ? "amber" : schedule.cutoffStatus === "today" ? "pink" : "green"}>{badge}</Badge></div><dl className="mt-5 grid overflow-hidden rounded-lg border border-[#38425E] sm:grid-cols-2"><div className="border-b border-[#38425E] p-4 sm:border-r"><dt className="text-xs text-slate-400">Pay period</dt><dd className="mt-1 font-bold">{period}</dd></div><div className="border-b border-[#38425E] p-4"><dt className="text-xs text-slate-400">Approval cutoff</dt><dd className="mt-1 font-bold">{longDate(schedule.leaveApprovalCutoff)}</dd></div><div className="border-b border-[#38425E] p-4 sm:border-b-0 sm:border-r"><dt className="text-xs text-slate-400">Expected Twilio pay date</dt><dd className="mt-1 font-bold text-emerald-300">{longDate(schedule.payDate)}</dd></div><div className="p-4"><dt className="text-xs text-slate-400">Pay period number</dt><dd className="mt-1 font-bold">{schedule.payPeriodNumber} of 26</dd></div></dl><p className={`mt-4 rounded-lg border p-4 text-sm leading-6 ${schedule.cutoffStatus === "passed" ? "border-amber-400/40 bg-amber-400/10 text-amber-100" : "border-[#38425E] text-slate-300"}`}>{schedule.cutoffStatus === "passed" && <span aria-hidden="true">! </span>}{message}</p><p className="mt-4 text-xs leading-5 text-slate-400">This schedule applies to leave-related payments processed through Twilio Payroll. State agencies may use a different payment schedule.</p><p className="mt-2 text-xs leading-5 text-slate-400">Payment timing may change if approval, payroll corrections, or required information is still pending.</p><button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="mt-5 flex w-full items-center justify-between rounded-lg border border-[#38425E] px-4 py-3 text-sm font-bold">View the full 2026 leave pay schedule <span aria-hidden="true">{open ? "v" : ">"}</span></button>{open && <div className="mt-3 space-y-2">{PAY_SCHEDULE_2026.map((row) => <div key={row.payPeriodNumber} className={`grid gap-1 rounded-lg border p-3 text-xs sm:grid-cols-5 ${row.payPeriodNumber === schedule.payPeriodNumber ? "border-[#1B66EE] bg-[#1B66EE]/10" : "border-[#38425E]"}`}><span>Pay period {row.payPeriodNumber}</span><span>{longDate(row.payPeriodStart)}</span><span>{longDate(row.payPeriodEnd)}</span><span>{longDate(row.leaveApprovalCutoff)}</span><span className="text-emerald-300">{longDate(row.payDate)}</span></div>)}</div>}<p className="mt-4 text-xs text-slate-400">Planning guidance-not a payment guarantee.</p></Panel>;
+  const message = schedule.employeeMessage;
+  return <Panel className="p-6"><div className="flex items-start justify-between gap-4"><h3 className="font-serif text-xl font-bold">When you can expect payment</h3><Badge tone={schedule.cutoffStatus === "passed" ? "amber" : schedule.cutoffStatus === "today" ? "pink" : "green"}>{badge}</Badge></div><dl className="mt-5 grid overflow-hidden rounded-lg border border-[#38425E] sm:grid-cols-2"><div className="border-b border-[#38425E] p-4 sm:border-r"><dt className="text-xs text-slate-400">Leave approval date</dt><dd className="mt-1 font-bold">{longDate(schedule.approvalDate)}</dd></div><div className="border-b border-[#38425E] p-4"><dt className="text-xs text-slate-400">Pay period</dt><dd className="mt-1 font-bold">{period}</dd></div><div className="border-b border-[#38425E] p-4 sm:border-r"><dt className="text-xs text-slate-400">Approval cutoff</dt><dd className="mt-1 font-bold">{longDate(schedule.leaveApprovalCutoff)}</dd></div><div className="border-b border-[#38425E] p-4"><dt className="text-xs text-slate-400">Expected Twilio pay date</dt><dd className="mt-1 font-bold text-emerald-300">{longDate(schedule.payDate)}</dd></div><div className="p-4"><dt className="text-xs text-slate-400">Pay period number</dt><dd className="mt-1 font-bold">{schedule.payPeriodNumber} of 26</dd></div></dl><p className="mt-4 rounded-lg border border-[#38425E] p-4 text-sm leading-6 text-slate-300">{message}</p><p className="mt-4 text-xs leading-5 text-slate-400">This schedule applies to leave-related payments processed through Twilio Payroll. State agencies may use a different payment schedule.</p><p className="mt-2 text-xs leading-5 text-slate-400">Payment timing may change if approval, payroll corrections, or required information is still pending.</p>{fullSchedule}</Panel>;
 }
 
-export function PayExperienceLayout({ experience, schedule = { status: "dates-missing", employeeMessage: "Pay-period dates are needed to identify the expected payroll date." } }) {
+export function PayExperienceLayout({ experience, schedule = { status: "approval-date-missing", employeeMessage: "Your approval date is not available yet.", supportingGuidance: "Once your leave is approved, the approval date can be used to identify the expected Twilio payroll cycle." } }) {
   const isStd = experience.scenario === "std";
   const chartTotal = Number(experience.coordinatedTotal || experience.coordinatedPayTarget || 0);
   const segments = experience.components.filter((component) => component.amount > 0).map((component) => ({
@@ -891,7 +892,7 @@ export function PayExperienceLayout({ experience, schedule = { status: "dates-mi
   }));
   return (
     <div className="space-y-5">
-      <Panel className="p-6 sm:p-7"><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay and Leave Timeline</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review planning estimates for this pay period. Final amounts may vary.</p><div className="mt-4 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">{experience.notice}</div></Panel>
+      <Panel className="p-6 sm:p-7"><Badge tone="pink">Pay &amp; Timeline</Badge><h2 className="mt-4 font-serif text-3xl font-bold">Your Pay</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Review planning estimates for this pay period. Final amounts may vary.</p><div className="mt-4 rounded-lg border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">{experience.notice}</div></Panel>
       <div className="grid gap-5 lg:grid-cols-[11fr_14fr]">
         <div className="space-y-5">
           <Panel className="p-6"><h3 className="font-serif text-xl font-bold">Pay Estimate Summary</h3><div className="mt-4 space-y-3">{experience.components.map((component) => <div key={component.label} className="border-b border-slate-700/70 pb-3 last:border-b-0"><div className="flex items-baseline justify-between gap-3"><span className="text-sm text-slate-300">{component.label}</span><strong>{money(component.amount)}</strong></div><div className="mt-1 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></div>)}{experience.coordinatedPayTarget != null && <div className="border-t border-slate-600 pt-3"><div className="flex items-baseline justify-between gap-3"><span className="font-bold">Estimated coordinated pay</span><strong className="text-xl text-emerald-300">{money(experience.coordinatedPayTarget)}</strong></div><div className="mt-1 text-xs font-semibold text-[#72A5FF]">Planning estimate</div></div>}</div>{experience.payPeriod && <div className="mt-5 rounded-lg border border-[#38425E] p-4"><h3 className="font-serif text-lg font-bold">Estimated pay for this pay period</h3><p className="mt-2 text-sm text-slate-300">{displayPayPeriod(experience.payPeriod.from, experience.payPeriod.through)}</p></div>}</Panel><PaymentTimingCard schedule={schedule} />
@@ -1524,8 +1525,8 @@ export default function App() {
       <main className="app-content mx-auto max-w-7xl space-y-6 px-5 py-6 sm:py-8">
         {showVerificationMessage && (
           <div role="status" aria-live="polite" className="flex items-start justify-between gap-4 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
-            <span>{SUCCESS_STATUS_MESSAGE}</span>
-            <button type="button" aria-label="Dismiss verification confirmation" onClick={() => setShowVerificationMessage(false)} className="shrink-0 rounded-md px-2 text-lg leading-5 text-emerald-100 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60">×</button>
+            <span>Welcome, {employee.firstName} {employee.lastName}</span>
+            <button type="button" aria-label="Dismiss welcome message" onClick={() => setShowVerificationMessage(false)} className="shrink-0 rounded-md px-2 text-lg leading-5 text-emerald-100 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-cyan-400/60">×</button>
           </div>
         )}
         <PriorityActions employee={employee} />

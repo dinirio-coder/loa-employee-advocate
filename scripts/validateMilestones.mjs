@@ -6,7 +6,7 @@ const asOfDate = "2026-08-27";
 const milestone = (scenario) => getEmployeeNextMilestone(scenario, { asOfDate });
 const expected = {
   futureLeave: "Apply for leave with Lincoln",
-  pendingDocumentation: "Submit requested documentation",
+  pendingDocumentation: "Submit your documentation",
   leaveInThreeDays: "Complete your leave preparation",
   currentlyOnLeave: "Review Lincoln updates",
   expectedReturnInFourteenDays: "Confirm your return date",
@@ -20,9 +20,15 @@ const expected = {
 for (const [name, label] of Object.entries(expected)) assert.equal(milestone(DEMO_SCENARIOS[name]).label, label, name);
 assert.equal(milestone(DEMO_SCENARIOS.leaveInThreeDays).date, "2026-08-27");
 assert.equal(milestone(DEMO_SCENARIOS.pendingDocumentation).date, null);
-assert.match(milestone(DEMO_SCENARIOS.pendingDocumentation).basis, /15 calendar days/);
+assert.equal(milestone(DEMO_SCENARIOS.pendingDocumentation).timing, "Check the deadline in MyLincoln Portal");
+assert.equal(milestone(DEMO_SCENARIOS.pendingDocumentation).basis, "Submit your required documentation through MyLincoln Portal by the deadline shown there.");
 const withDeadline = { ...DEMO_SCENARIOS.pendingDocumentation, sourceRecords: [{ ...DEMO_SCENARIOS.pendingDocumentation.sourceRecords[0], documentationDeadline: "2026-09-05" }] };
-assert.equal(milestone(withDeadline).date, "2026-09-05");
+assert.equal(milestone(withDeadline).date, null);
+for (const status of ["PE", "PEND", "PENDED", "PENDING", "IP"]) {
+  const pending = milestone({ currentReportStatus: status, sourceRecords: [{ leaveBeginDate: "2026-09-10" }] });
+  assert.equal(pending.label, "Submit your documentation", `${status} should not receive apply guidance`);
+  assert.equal(pending.timing, "Check the deadline in MyLincoln Portal");
+}
 assert.equal(milestone(DEMO_SCENARIOS.pastExpectedReturn).status, "overdue");
 assert.equal(milestone(DEMO_SCENARIOS.expectedReturnInFourteenDays).date, "2026-09-10");
 assert.equal(milestone(DEMO_SCENARIOS.expectedReturnToday).status, "today");

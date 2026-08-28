@@ -149,20 +149,20 @@ const validate = (employee) => {
   return lifecycle;
 };
 
-const luke = validate(
-  profile("Luke", "Skywalker", "1048291"),
+const minnie = validate(
+  profile("Minnie", "Mouse", "700002"),
 );
-assert.equal(luke.suggestedStageId, "after-return");
+assert.equal(minnie.suggestedStageId, "after-return");
 
 assert(
-  luke.stages
+  minnie.stages
     .find((stage) => stage.id === "return-to-work")
       .items.some((task) => task.id === "confirm-return-date"),
 );
-const will = validate(
-  profile("Will", "Johansson", "2749015"),
+const ernest = validate(
+  profile("Ernest", "Hemingway", "700111"),
 );
-assert.equal(will.suggestedStageId, "documentation");
+assert.equal(ernest.suggestedStageId, "pre-leave");
 
 const documentation = validate({
   currentReportStatus: "PE",
@@ -173,9 +173,9 @@ assert.equal(
   documentation.suggestedStageId,
   "documentation",
 );
-const incomplete = validate(
-  profile("Amelia", "Moore", "129384"),
-);
+const incomplete = validate({
+  sourceRecords: [{ leaveEndDate: "2026-09-01", estimatedRTW: "2026-09-10" }],
+});
 assert.equal(incomplete.hasSuggestedStage, false);
 assert.equal(incomplete.suggestedStageId, null);
 assert.equal(incomplete.stages[0].id, "pre-leave");

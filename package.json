@@ -12,6 +12,7 @@
     "test:action-plan": "node scripts/validateActionPlan.mjs",
     "test:lifecycle-ui": "node scripts/validateLifecycleUi.mjs",
     "test:lifecycle-stage-engine": "node scripts/validateLifecycleStageEngine.mjs",
+    "test:leave-episodes": "node scripts/validateLeaveEpisodes.mjs",
     "test:milestones": "node scripts/validateMilestones.mjs",
     "test:lifecycle-alerts": "node scripts/validateLifecycleAlerts.mjs",
     "test:return-to-work": "node scripts/validateReturnToWorkExperience.mjs",

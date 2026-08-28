@@ -1,6 +1,7 @@
 import { getLifecycleStageDecision } from "./lifecycleStageEngine.js";
 import { getEmployeeLifecycleAlerts } from "./lifecycleAlertUtils.js";
 import { getStateCoordinationExperience } from "./stateCoordinationExperience.js";
+import { normalizeEmployeeLeaveStatus } from "./statusUtils.js";
 
 const MY_LINCOLN_URL = "https://www.mylincolnportal.com/";
 
@@ -57,12 +58,27 @@ const fallbackActions = (basis) => [
   action("track-your-todos", "Track your to-dos", "Use Your Leave Journey to review the steps that apply to your leave.", "As needed", "Employee", null, basis),
 ];
 
+const pendingActions = (basis) => [
+  action("documentation-submit", "Submit your documentation to Lincoln", "Submit your required documentation through MyLincoln Portal by the deadline shown there, usually within 15 calendar days.", "By the deadline shown in MyLincoln Portal", "Employee", MY_LINCOLN_URL, basis, "High"),
+  action("tell-manager", "Tell your manager", "Share your expected leave start date with your manager. You do not need to provide medical details.", "After starting your leave request", "Employee", null, basis),
+];
+
 export const getEmployeePriorityActions = (employee, options = {}) => {
   const decision = getLifecycleStageDecision(employee, options);
+  const status = normalizeEmployeeLeaveStatus(employee);
   const alerts = getEmployeeLifecycleAlerts(employee, options);
   const stateExperience = getStateCoordinationExperience(employee, options);
   const alertActions = alerts.map((alert) => action(`alert-${alert.id}`, alert.title, alert.description, "Act now", "Employee", alert.destination, "Important follow-up for your leave.", alert.severity === "high" ? "High" : "Normal"));
   const stateAction = stateExperience.applicationAction ? [action("state-application", "Apply for your state benefit", "Complete the separate state application so the state agency can review your benefit request.", "As soon as possible", "Employee", stateExperience.applicationAction.url, "A state application may be needed.", "High")] : [];
+  if (status.statusKey.startsWith("PENDING")) {
+    const requiredActions = pendingActions(decision.reason);
+    const requiredTitles = new Set(requiredActions.map((item) => item.title));
+    return [
+      ...requiredActions,
+      ...alertActions.filter((item) => !requiredTitles.has(item.title)),
+      ...stateAction.filter((item) => !requiredTitles.has(item.title)),
+    ];
+  }
   const normalActions = actionsByStage[decision.stageId]?.(decision.reason) || fallbackActions(decision.reason);
   const existingTitles = new Set([...alerts.map((alert) => alert.title), ...normalActions.map((item) => item.title)]);
   return [...alertActions, ...stateAction.filter((item) => !existingTitles.has(item.title)), ...normalActions.filter((item) => !alerts.some((alert) => alert.title === item.title))];

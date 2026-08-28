@@ -10,20 +10,20 @@ assert.equal(normalizeDisplayDate("46215.0"), "2026-07-12");
 assert.equal(normalizeDisplayDate("2026-08-26"), "2026-08-26");
 assert.equal(normalizeDisplayDate("not-a-date"), null);
 
-const edgar = profile("Edgar", "Melville", "9548629");
-assert(edgar && edgar.biweeklySalary > 0);
-const edgarModel = getEmployeePayTimeline(edgar, { asOfDate });
-assert.equal(edgarModel.hasPayData, true);
-assert.equal(edgarModel.payScenario, "std");
-assert.equal(edgarModel.sourcePayValues.benefitGrossAmount, 1400);
-assert.notEqual(edgarModel.sourcePayValues.biweeklySalary, edgarModel.sourcePayValues.benefitGrossAmount);
-assert.equal(edgarModel.payPeriod.from, "2026-07-12");
-assert(!JSON.stringify(edgarModel).includes("46215.0"));
-assert(!JSON.stringify(edgarModel).includes("46228.0"));
-assert.equal(new Set(edgarModel.timelineEvents.map((event) => event.id)).size, edgarModel.timelineEvents.length);
-assert(Object.values(edgarModel).every((value) => JSON.stringify(value).toLowerCase().includes("guaranteed") === false));
+const belle = profile("Belle", "Beaumont", "700015");
+assert(belle && belle.biweeklySalary > 0);
+const belleModel = getEmployeePayTimeline(belle, { asOfDate });
+assert.equal(belleModel.hasPayData, true);
+assert.equal(belleModel.payScenario, "std");
+assert.equal(belleModel.sourcePayValues.benefitGrossAmount, 4018.4);
+assert.notEqual(belleModel.sourcePayValues.biweeklySalary, belleModel.sourcePayValues.benefitGrossAmount);
+assert.equal(belleModel.payPeriod.from, "2026-07-12");
+assert(!JSON.stringify(belleModel).includes("46215.0"));
+assert(!JSON.stringify(belleModel).includes("46228.0"));
+assert.equal(new Set(belleModel.timelineEvents.map((event) => event.id)).size, belleModel.timelineEvents.length);
+assert(Object.values(belleModel).every((value) => JSON.stringify(value).toLowerCase().includes("guaranteed") === false));
 
-const goofyModel = getEmployeePayTimeline(profile("Goofy", "", "100005"), { asOfDate });
+const goofyModel = getEmployeePayTimeline(profile("Goofy", "Goof", "700005"), { asOfDate });
 assert.equal(goofyModel.hasPayData, false);
 assert.equal(goofyModel.payScenario, "none");
 assert(!JSON.stringify(goofyModel).includes("$0.00"));
@@ -37,9 +37,9 @@ const unknownModel = getEmployeePayTimeline({ employeeId: "unknown", sourceRecor
 assert.equal(unknownModel.payScenario, "record-only");
 assert.equal(unknownModel.planningEstimate, null);
 
-const lukeModel = getEmployeePayTimeline(profile("Luke", "Skywalker", "1048291"), { asOfDate });
-assert(lukeModel.timelineEvents.some((event) => event.label === "Actual return to work" && event.date === "2026-08-17"));
-assert(lukeModel.timelineEvents.some((event) => event.label === "Benefit end"));
+const minnieModel = getEmployeePayTimeline(profile("Minnie", "Mouse", "700002"), { asOfDate });
+assert(minnieModel.timelineEvents.some((event) => event.label === "Actual return to work" && event.date === "2026-02-27"));
+assert(minnieModel.timelineEvents.some((event) => event.label === "Benefit end"));
 
 const singleRecord = { employeeId: "range", sourceSheet: "Leave Plan", leaveBeginDate: "2026-09-01", leaveEndDate: "2026-09-10", durationDays: "10" };
 const rangeModel = getEmployeePayTimeline({ employeeId: "range", sourceRecords: [singleRecord] }, { asOfDate });
@@ -58,6 +58,6 @@ for (const [leaveReason, expectedState, expectedLincoln] of [["Bonding leave", 2
 	assert.equal(model.stateBenefit.assumedStateOffset + model.planningEstimate.lincolnNetAfterStateOffset + model.planningEstimate.twilio.amount, model.planningEstimate.basePayTarget);
 }
 
-assert.equal(edgar.sourceRecords[1].payPeriodFromDate, "46215.0");
-assert.equal(edgarModel.timelineEvents.length > 0, true);
+assert.equal(belle.sourceRecords.find((record) => record.sourceSheet === "Twilio - ATP Report")?.payPeriodFromDate, "2026-07-12");
+assert.equal(belleModel.timelineEvents.length > 0, true);
 console.log("Pay and leave timeline validation passed.");

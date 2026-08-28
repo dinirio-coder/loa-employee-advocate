@@ -1,4 +1,6 @@
 import { LINCOLN_CODE_DICTIONARY } from "./lincolnCodeDictionary.js";
+import { getCanonicalLeaveEpisodes } from "./leaveEpisodeUtils.js";
+import { normalizeEmployeeLeaveStatus } from "./statusUtils.js";
 
 const DAY_IN_MILLISECONDS = 86400000;
 const DATE_FIELDS = ["leaveBeginDate", "leaveEndDate", "estimatedRTW", "actualRTW"];
@@ -16,12 +18,13 @@ const daysBetween = (from, to) => Math.round((dayNumber(to) - dayNumber(from)) /
 
 /** Maps repository-supported Lincoln status codes to lifecycle categories. */
 export const normalizeLifecycleStatus = (value) => {
-  const code = String(value ?? "").trim().toUpperCase();
-  if (["PE", "PENDING", "PEND", "IP"].includes(code)) return "PENDING";
-  if (["AP", "APPROVED"].includes(code)) return "APPROVED";
-  if (["CL", "CLOSED"].includes(code)) return "CLOSED";
-  if (["DE", "DENIED"].includes(code)) return "DENIED";
-  if (["VD", "VOID", "CANCELED", "CANCELLED"].includes(code)) return "CANCELED";
+  const normalized = normalizeEmployeeLeaveStatus(typeof value === "object" && value !== null ? value : { currentReportStatus: value });
+  if (!normalized.sourceCodeRecognized && normalized.statusKey === "UNKNOWN") return "UNKNOWN";
+  if (normalized.statusKey.startsWith("PENDING") || normalized.statusKey === "INCOMPLETE") return "PENDING";
+  if (normalized.statusKey === "APPROVED") return "APPROVED";
+  if (normalized.statusKey === "CLOSED") return "CLOSED";
+  if (normalized.statusKey === "DENIED") return "DENIED";
+  if (normalized.statusKey === "CANCELED" || normalized.statusKey === "TERMINATED") return "CANCELED";
   return "UNKNOWN";
 };
 
@@ -55,9 +58,14 @@ const controllingRecordView = (record) => record ? {
 export const getLifecycleStageDecision = (employee, { asOfDate } = {}) => {
   const normalizedAsOfDate = normalizeDate(asOfDate) || new Date().toISOString().slice(0, 10);
   const sourceRecords = Array.isArray(employee?.sourceRecords) && employee.sourceRecords.length ? employee.sourceRecords : [employee || {}];
-  const uniqueRecords = sourceRecords.filter((record, index) => sourceRecords.findIndex((candidate) => sameRecord(candidate, record)) === index);
-  const normalizedRecords = uniqueRecords.map((record, sourceIndex) => normalizedRecord(employee, record, sourceIndex));
-  const exactDuplicatesRemoved = sourceRecords.length - uniqueRecords.length;
+  const episodes = getCanonicalLeaveEpisodes(sourceRecords);
+  const lifecycleRecords = episodes.length ? episodes.map((episode) => ({
+    ...episode,
+    estimatedRTW: episode.expectedReturnDate,
+    actualRTW: episode.actualReturnDate,
+  })) : sourceRecords.filter((record, index) => sourceRecords.findIndex((candidate) => sameRecord(candidate, record)) === index);
+  const normalizedRecords = lifecycleRecords.map((record, sourceIndex) => normalizedRecord(employee, record, sourceIndex));
+  const exactDuplicatesRemoved = sourceRecords.length - lifecycleRecords.length;
   const validPeriods = normalizedRecords.filter((record) => record.leaveStart && record.leaveEnd && !record.invalidDateOrder);
   const leaveRecords = normalizedRecords.filter((record) => record.leaveStart && !record.invalidDateOrder);
   const overlappingRecords = [];
@@ -88,7 +96,10 @@ export const getLifecycleStageDecision = (employee, { asOfDate } = {}) => {
   const daysUntilLeave = leaveStart ? daysBetween(normalizedAsOfDate, leaveStart) : null;
   const daysUntilExpectedReturn = expectedReturn ? daysBetween(normalizedAsOfDate, expectedReturn) : null;
   const statusCategory = selected?.statusCategory || normalizeLifecycleStatus(statusValue(employee, null));
+  const statusSummary = normalizeEmployeeLeaveStatus(employee);
   const pending = statusCategory === "PENDING";
+  const isDocReason = statusSummary.label === "Documentation needed" || statusSummary.statusKey === "PENDING_DOCUMENTATION" || statusSummary.statusKey === "INCOMPLETE";
+  const isEarlySubmission = /EARLY SUBMISSION|REVIEW PENDING|PENDING REVIEW/i.test([employee?.statusReason, employee?.leaveStatusReasonDescription, employee?.pendedClaimReason].filter(Boolean).join(" "));
   const expectedReturnOverdue = Boolean(expectedReturn && !actualReturn && dayNumber(expectedReturn) < dayNumber(normalizedAsOfDate));
   const pendingNearReturn = Boolean(pending && expectedReturn && daysUntilExpectedReturn >= 0 && daysUntilExpectedReturn <= 14);
   const pendingAfterReturn = Boolean(pending && actualReturn && dayNumber(actualReturn) < dayNumber(normalizedAsOfDate));
@@ -100,7 +111,7 @@ export const getLifecycleStageDecision = (employee, { asOfDate } = {}) => {
   else if ((actualReturn && dayNumber(actualReturn) === dayNumber(normalizedAsOfDate)) || (!actualReturn && expectedReturn && dayNumber(expectedReturn) === dayNumber(normalizedAsOfDate))) { stageId = "first-day-back"; reason = "Your return date is today; confirm your return with Lincoln and your manager."; }
   else if (expectedReturnOverdue || (leaveStart && leaveEnd && dayNumber(leaveStart) <= dayNumber(normalizedAsOfDate) && daysUntilExpectedReturn !== null && daysUntilExpectedReturn >= 1 && daysUntilExpectedReturn <= 14)) { stageId = "return-to-work"; reason = expectedReturnOverdue ? "Your expected return date has passed and still needs confirmation." : "Your expected return is within the next 14 days."; }
   else if (leaveStart && dayNumber(leaveStart) <= dayNumber(normalizedAsOfDate) && (!leaveEnd || dayNumber(leaveEnd) >= dayNumber(normalizedAsOfDate))) { stageId = "on-leave"; reason = "Your leave is currently in progress."; }
-  else if (pending && populated(employee?.dateReceived)) { stageId = "documentation"; reason = "Lincoln may still need documentation or follow-up."; }
+  else if (pending && (isDocReason || (populated(employee?.dateReceived) && !isEarlySubmission))) { stageId = "documentation"; reason = "Lincoln may still need documentation or follow-up."; }
   else if (daysUntilLeave !== null && daysUntilLeave >= 1 && daysUntilLeave <= 3) { stageId = "business-handoff"; reason = "Your leave begins within the next 3 days."; }
   else if (daysUntilLeave !== null && daysUntilLeave > 3) { stageId = "pre-leave"; reason = "Your planned leave starts more than 3 days from now."; }
   return { stageId, reason, asOfDate: normalizedAsOfDate, controllingRecord, normalizedDates: { leaveStart, leaveEnd, expectedReturn, actualReturn }, daysUntilLeave, daysUntilExpectedReturn, statusCategory, flags, dataQuality: { exactDuplicatesRemoved, overlappingRecords, conflictingStartDates, conflictingEndDates, conflictingExpectedReturns, conflictingActualReturns, invalidDateOrder, futureActualReturn } };

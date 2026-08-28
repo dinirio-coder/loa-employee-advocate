@@ -8,15 +8,15 @@ const forEmployee = (employeeId) => ({
   ),
 });
 
-const luke = getEmployeeReturnToWorkSummary(forEmployee("1048291"));
-assert.equal(luke.status, "Return recorded");
-assert.equal(luke.controllingReturnDate, "2026-08-17");
-assert.equal(luke.sourceSheet, "Twilio Closed RTW Summary");
+const mickey = getEmployeeReturnToWorkSummary(forEmployee("700001"));
+assert.equal(mickey.status, "Return recorded");
+assert.equal(mickey.controllingReturnDate, "2026-01-19");
+assert.equal(mickey.sourceSheet, "Main Leave Report");
 
-const goofy = getEmployeeReturnToWorkSummary(forEmployee("100005"));
-assert.equal(goofy.status, "Planned return");
-assert.equal(goofy.controllingReturnDate, "2026-09-07");
-assert.equal(goofy.sourceSheet, "Hours Daily Report");
+const louie = getEmployeeReturnToWorkSummary(forEmployee("700010"));
+assert.equal(louie.status, "Planned return");
+assert.equal(louie.controllingReturnDate, "2026-09-02");
+assert.equal(louie.sourceSheet, "Hours Daily Report");
 
 const estimated = getEmployeeReturnToWorkSummary({
   sourceRecords: [{ estimatedRTW: "2026-10-03", sourceSheet: "RTW Plan" }],

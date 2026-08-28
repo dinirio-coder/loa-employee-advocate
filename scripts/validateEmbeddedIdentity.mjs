@@ -11,15 +11,15 @@ import {
 } from "../src/data/identityUtils.js";
 
 const REQUIRED_CASES = [
-  { firstName: "Amelia", lastName: "Moore", employeeId: "129384", expected: true },
-  { firstName: "Will", lastName: "Johansson", employeeId: "2749015", expected: true },
-  { firstName: "Tom", lastName: "Smith", employeeId: "3282817", expected: true },
-  { firstName: "Luke", lastName: "Skywalker", employeeId: "1048291", expected: true },
-  { firstName: "Mickey", lastName: "Mouse", employeeId: "100001", expected: true },
-  { firstName: "John", lastName: "Smith", employeeId: "837492", expected: true },
-  { firstName: "Tony", lastName: "Stark", employeeId: "1000001", expected: true },
-  { firstName: "Leo", lastName: "Dostoevsky", employeeId: "4835966", expected: true },
-  { firstName: "Goofy", lastName: "N/A", employeeId: "100005", expected: true },
+  { firstName: "Mickey", lastName: "Mouse", employeeId: "700001", expected: true },
+  { firstName: "Minnie", lastName: "Mouse", employeeId: "700002", expected: true },
+  { firstName: "Donald", lastName: "Duck", employeeId: "700003", expected: true },
+  { firstName: "Daisy", lastName: "Duck", employeeId: "700004", expected: true },
+  { firstName: "Goofy", lastName: "Goof", employeeId: "700005", expected: true },
+  { firstName: "Pluto", lastName: "Pup", employeeId: "700006", expected: true },
+  { firstName: "Mulan", lastName: "Fa", employeeId: "700037", expected: true },
+  { firstName: "John", lastName: "Smith", employeeId: "700040", expected: true },
+  { firstName: "Scarlett", lastName: "Johansson", employeeId: "700519", expected: true },
 ];
 
 const conflictSet = new Set(CONFLICTING_EMPLOYEE_IDS.map(normalizeEmployeeId));
@@ -31,8 +31,8 @@ const identityIdSet = new Set(
 );
 
 const counts = {
-  workbookRows: 973,
-  workbookUniqueIds: 578,
+  workbookRows: 4154,
+  workbookUniqueIds: 520,
   embeddedRows: EMBEDDED_EMPLOYEE_RECORDS.length,
   embeddedUniqueIds: embeddedIdSet.size,
   identityIndexKeys: EMPLOYEE_IDENTITY_INDEX.length,
@@ -48,9 +48,8 @@ const assert = (condition, message) => {
 assert(counts.embeddedRows === counts.workbookRows, `Embedded row count mismatch: expected ${counts.workbookRows}, got ${counts.embeddedRows}.`);
 assert(counts.embeddedUniqueIds === counts.workbookUniqueIds, `Embedded unique-ID count mismatch: expected ${counts.workbookUniqueIds}, got ${counts.embeddedUniqueIds}.`);
 assert(counts.identityIndexKeys === counts.workbookUniqueIds, `Identity index count mismatch: expected ${counts.workbookUniqueIds}, got ${counts.identityIndexKeys}.`);
-assert(counts.nameOnlyRows === 100, `Name-only rows mismatch: expected 100, got ${counts.nameOnlyRows}.`);
-assert(conflictSet.has("475869"), "Conflict set must include 475869.");
-assert(conflictSet.size === 1, `Conflict set must be only 475869, got ${[...conflictSet].join(", ")}.`);
+assert(counts.nameOnlyRows === 0, `Name-only rows mismatch: expected 0, got ${counts.nameOnlyRows}.`);
+assert(conflictSet.size === 0, `Replacement population must not contain conflicts, got ${[...conflictSet].join(", ")}.`);
 
 for (const record of EMPLOYEE_IDENTITY_INDEX) {
   const id = normalizeEmployeeId(record.employeeId);
@@ -97,11 +96,11 @@ for (const testCase of REQUIRED_CASES) {
   );
 }
 
-assert(!matchEmployeeIdentity({ firstName: "Amelia", lastName: "Moore", employeeId: "129384" }, "Amelia", "Wrong", "129384"), "Wrong name should fail with correct employee ID.");
-assert(!matchEmployeeIdentity({ firstName: "Amelia", lastName: "Moore", employeeId: "129384" }, "Moore", "Amelia", "129384"), "Swapped names should fail with correct employee ID.");
-assert(!matchEmployeeIdentity({ firstName: "Olivia", lastName: "Garcia", employeeId: "475869" }, "Olivia", "Garcia", "475869"), "Conflicted ID should remain blocked.");
+assert(!matchEmployeeIdentity({ firstName: "Minnie", lastName: "Mouse", employeeId: "700002" }, "Minnie", "Wrong", "700002"), "Wrong name should fail with correct employee ID.");
+assert(!matchEmployeeIdentity({ firstName: "Minnie", lastName: "Mouse", employeeId: "700002" }, "Mouse", "Minnie", "700002"), "Swapped names should fail with correct employee ID.");
+assert(!identityIdSet.has("475869"), "Legacy conflicting ID 475869 must not survive replacement.");
 assert(!matchEmployeeIdentity({ firstName: "Anonymous", lastName: "Person", employeeId: "" }, "Anonymous", "Person", ""), "Blank employee ID should not verify.");
-assert(matchEmployeeIdentity({ firstName: "Goofy", lastName: "N/A", employeeId: "100005" }, "Goofy", "N/A", "100005"), "Goofy N/A identity should verify.");
+assert(matchEmployeeIdentity({ firstName: "Goofy", lastName: "Goof", employeeId: "700005" }, "Goofy", "Goof", "700005"), "Goofy identity should verify.");
 
 const nameOnlyMatches = NAME_ONLY_SOURCE_RECORDS.filter((record) => {
   const id = normalizeEmployeeId(record.employeeId);

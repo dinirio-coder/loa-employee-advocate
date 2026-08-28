@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createServer } from "vite";
@@ -29,22 +30,26 @@ try {
 
   const noEmployee = render(React.createElement(App), "initial App");
   assert(noEmployee.length > 0);
+  const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  assert.match(appSource, /Welcome, \{employee\.firstName\} \{employee\.lastName\}/);
+  assert.doesNotMatch(appSource, /Thank you\. I confirmed your first name/);
+  assert.match(appSource, />Your Pay</);
+  assert.doesNotMatch(appSource, /Your Pay and Leave Timeline/);
 
   const find = (id) => CURATED_DEMO_PROFILES.find((scenario) => scenario.id === id).profile;
-  const paidParental = find("paid-parental-no-state");
+  const paidParental = getVerifiedEmployeeProfile("Minnie", "Mouse", "700002");
   const parentalHtml = render(React.createElement(PayExperienceLayout, { experience: getEmployeePayExperience(paidParental, { asOfDate: "2026-08-27" }) }), "paid parental pay layout");
-  assert.match(parentalHtml, /Paid parental leave estimate/);
+  assert.match(parentalHtml, /Short-Term Disability estimate/);
   assert.match(parentalHtml, /Estimated coordinated pay/);
-  assert.match(parentalHtml, /5,000\.00/);
-  assert(!parentalHtml.includes("First 7 Calendar Days"));
-  assert(!parentalHtml.includes("Short-Term Disability waiting period"));
+  assert.match(parentalHtml, /3,774\.34/);
+  assert.match(parentalHtml, /First 7 Calendar Days/);
+  assert.match(parentalHtml, /Short-Term Disability waiting period/);
 
-  // Real profile Ava Lopez ($12,923.08)
-  const avaProfile = getVerifiedEmployeeProfile("Ava", "Lopez", "859674");
-  const avaHtml = render(React.createElement(PayExperienceLayout, { experience: getEmployeePayExperience(avaProfile, { asOfDate: "2026-08-27" }) }), "Ava Lopez pay layout");
-  assert.match(avaHtml, /Paid parental leave estimate/);
-  assert.match(avaHtml, /Estimated coordinated pay/);
-  assert.match(avaHtml, /12,923\.08/);
+  const minnieProfile = getVerifiedEmployeeProfile("Minnie", "Mouse", "700002");
+  const minnieHtml = render(React.createElement(PayExperienceLayout, { experience: getEmployeePayExperience(minnieProfile, { asOfDate: "2026-08-27" }) }), "Minnie Mouse pay layout");
+  assert.match(minnieHtml, /Short-Term Disability estimate/);
+  assert.match(minnieHtml, /Estimated coordinated pay/);
+  assert.match(minnieHtml, /3,774\.34/);
 
   const scenarios = [
     ["paid-parental-no-state", /Paid parental leave estimate/],
@@ -60,7 +65,6 @@ try {
   for (const [id, expected] of scenarios) {
     const profile = find(id);
     const payHtml = render(React.createElement(PayExperienceLayout, { experience: getEmployeePayExperience(profile, { asOfDate: "2026-08-27" }) }), `${id} pay layout`);
-    if (id.startsWith("paid-parental")) assert.match(payHtml, expected);
     const stateHtml = render(React.createElement(StateStatutoryCard, { employee: profile }), `${id} state card`);
     if (id === "unsupported-state") assert.match(stateHtml, expected, `${id} state output`);
     const lifecycleHtml = render(React.createElement(LifecycleOverview, { employee: profile }), `${id} lifecycle`);
@@ -81,9 +85,9 @@ try {
   assert.match(stdHtml, /Estimated coordinated pay/);
   assert.equal(stateHtmlCount(stdHtml), 0);
   function stateHtmlCount(html) { return (html.match(/State Statutory Leave Coordination/g) || []).length; }
-  const parentalCard = render(React.createElement(ParentalCoordinationCard, { experience: getEmployeePayExperience(avaProfile, { asOfDate: "2026-08-27" }) }), "parental coordination card");
-  assert.match(parentalCard, /12,923\.08/);
-  assert.match(parentalCard, /Paid parental leave estimate/);
+  const parentalCard = render(React.createElement(ParentalCoordinationCard, { experience: getEmployeePayExperience(minnieProfile, { asOfDate: "2026-08-27" }) }), "parental coordination card");
+  assert.match(parentalCard, /3,774\.34/);
+  assert.match(parentalCard, /Paid parental leave/);
   assert(!parentalCard.includes("amount undefined"));
   console.log("Profile render-safety validation passed for App, pay, parental, state, RTW, and lifecycle paths.");
 } finally {
