@@ -31,10 +31,21 @@ try {
   const noEmployee = render(React.createElement(App), "initial App");
   assert(noEmployee.length > 0);
   const appSource = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+  const cssSource = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
   assert.match(appSource, /Welcome, \{employee\.firstName\} \{employee\.lastName\}/);
   assert.doesNotMatch(appSource, /Thank you\. I confirmed your first name/);
   assert.match(appSource, />Your Pay</);
   assert.doesNotMatch(appSource, /Your Pay and Leave Timeline/);
+  assert.match(appSource, /import loaEmployeeAdvocateBanner from "\.\/assets\/loa-employee-advocate-banner\.png"/);
+  assert.match(appSource, /src=\{loaEmployeeAdvocateBanner\}/);
+  assert.match(appSource, /alt="Twilio LOA Employee Advocate — Personalized Leave Guidance, Pay Insights and Return-to-Work Support — Internal Demo"/);
+  assert.match(appSource, /<h1 className="sr-only">Twilio LOA Employee Advocate<\/h1>/);
+  assert.doesNotMatch(appSource, /app-brand__mark|app-brand__title-row|app-brand__subtitle/);
+  for (const label of ["Print Plan", "Ask Advocate", "Switch Profile", "Lock Demo", "Verified Profile:", "Disclaimer:", "PHI-Free Demo Data"]) assert.match(appSource, new RegExp(label));
+  assert.match(cssSource, /\.app-banner__image\s*\{[\s\S]*?width:\s*100%;[\s\S]*?height:\s*auto;/);
+  assert.match(cssSource, /\.app-banner\s*\{\s*max-width:\s*100%;\s*\}/);
+  assert.doesNotMatch(cssSource, /\.app-banner\s*\{[^}]*(?:overflow:\s*hidden|height:\s*\d)/);
+  assert.doesNotMatch(cssSource, /\.app-banner__image\s*\{[^}]*(?:object-fit|width:\s*auto|height:\s*\d)/);
 
   const find = (id) => CURATED_DEMO_PROFILES.find((scenario) => scenario.id === id).profile;
   const paidParental = getVerifiedEmployeeProfile("Minnie", "Mouse", "700002");
