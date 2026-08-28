@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import loaEmployeeAdvocateBanner from "./assets/loa-employee-advocate-banner.png";
 import { CONFLICTING_EMPLOYEE_IDS } from "./data/embeddedEmployeeRecords";
 import {
   normalizeEmployeeId,
@@ -491,23 +492,13 @@ function Header({ employee, onSignOut, onLockDemo, onOpenChat }) {
     <>
       <header className="app-header">
         <div className="app-header__row">
-          <div className="app-brand">
-            <div className="app-brand__mark" aria-hidden="true">
-              ◆
-            </div>
-
-            <div className="app-brand__copy">
-              <div className="app-brand__title-row">
-                <h1 className="font-serif app-brand__title">
-                  Twilio LOA Employee Advocate
-                </h1>
-                <Badge tone="pink">Internal Demo</Badge>
-              </div>
-
-              <p className="app-brand__subtitle">
-                Personalized Leave Guidance, Pay Insights & Return-to-Work Support
-              </p>
-            </div>
+          <h1 className="sr-only">Twilio LOA Employee Advocate</h1>
+          <div className="app-banner">
+            <img
+              src={loaEmployeeAdvocateBanner}
+              alt="Twilio LOA Employee Advocate — Personalized Leave Guidance, Pay Insights and Return-to-Work Support — Internal Demo"
+              className="app-banner__image"
+            />
           </div>
 
           <nav className="app-actions" aria-label="Employee Advocate actions">
